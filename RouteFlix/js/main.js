@@ -32,6 +32,21 @@ document.addEventListener('DOMContentLoaded', () => {
     let favorites = JSON.parse(localStorage.getItem('routeFlix_favorites')) || [];
     let searchQuery = "";
 
+    const observerOptions = {
+        root: null,
+        rootMargin: '0px',
+        threshold: 0.15
+    };
+
+    const rowObserver = new IntersectionObserver((entries, observer) => {
+        entries.forEach(entry => {
+            if (entry.isIntersecting) {
+                entry.target.classList.add('visible');
+                observer.unobserve(entry.target);
+            }
+        });
+    }, observerOptions);
+
     function renderCatalog() {
         catalogContainer.innerHTML = '';
 
@@ -167,6 +182,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
         rowDiv.appendChild(carouselContainer);
         catalogContainer.appendChild(rowDiv);
+
+        // Observe this row for scroll animations
+        rowObserver.observe(rowDiv);
     }
 
     renderCatalog();

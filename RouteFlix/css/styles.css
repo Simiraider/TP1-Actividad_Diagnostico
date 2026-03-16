@@ -88,7 +88,7 @@ body {
 .hero {
     position: relative;
     height: 85vh;
-    background: url('https://images.unsplash.com/photo-1506929562872-bb421503ef21?ixlib=rb-4.0.3&auto=format&fit=crop&w=1920&q=80') center/cover no-repeat;
+    background: url('https://www.imagui.com/i/azulestrellla-imagenes-gif-34669294.gif') center/cover no-repeat;
     display: flex;
     align-items: center;
     padding: 0 4%;
@@ -207,6 +207,14 @@ main {
 
 .category-row {
     margin-bottom: 50px;
+    opacity: 0;
+    transform: translateY(40px);
+    transition: opacity 0.8s cubic-bezier(0.165, 0.84, 0.44, 1), transform 0.8s cubic-bezier(0.165, 0.84, 0.44, 1);
+}
+
+.category-row.visible {
+    opacity: 1;
+    transform: translateY(0);
 }
 
 .category-title {
