@@ -1,0 +1,213 @@
+---
+import Layout from '../layouts/Layout.astro';
+import Navbar from '../components/Navbar.astro';
+import Hero from '../components/Hero.astro';
+import Row from '../components/Row.astro';
+---
+
+<Layout title="RouteFlix - Catálogo">
+    <Navbar />
+    <Hero />
+
+    <main id="catalog-container">
+        <!-- Rendered purely on the client side to recreate the JS logic cleanly,
+             or we can pre-render the empty catalog and fill it with JS -->
+    </main>
+
+    <footer>
+        <div class="footer-links">
+            <a href="javascript:void(0)">Acerca de RouteFlix</a>
+            <a href="javascript:void(0)">Centro de ayuda</a>
+            <a href="javascript:void(0)">Términos de uso</a>
+            <a href="javascript:void(0)">Privacidad</a>
+        </div>
+        <p>&copy; 2026 RouteFlix. Todos los derechos reservados.</p>
+    </footer>
+
+    <script>
+        import { destinations } from '../data/destinations.js';
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const navbar = document.getElementById('navbar');
+            if (navbar) {
+                window.addEventListener('scroll', () => {
+                    if (window.scrollY > 50) {
+                        navbar.classList.add('scrolled');
+                    } else {
+                        navbar.classList.remove('scrolled');
+                    }
+                });
+            }
+
+            const catalogContainer = document.getElementById('catalog-container');
+            const categories = ["Destinos Populares", "Aventuras", "Escapadas"];
+
+            let favorites = JSON.parse(localStorage.getItem('routeFlix_favorites')) || [];
+            let searchQuery = "";
+
+            const observerOptions = {
+                root: null,
+                rootMargin: '0px',
+                threshold: 0.15
+            };
+
+            const rowObserver = new IntersectionObserver((entries, observer) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        entry.target.classList.add('visible');
+                        observer.unobserve(entry.target);
+                    }
+                });
+            }, observerOptions);
+
+            function attachCardEvents(cardElement, dest) {
+                const favIcon = cardElement.querySelector('.fav-icon');
+                if(!favIcon) return;
+                
+                favIcon.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+
+                    const idStr = favIcon.getAttribute('data-id');
+                    const id = parseInt(idStr, 10);
+
+                    if (favorites.includes(id)) {
+                        favorites = favorites.filter(fId => fId !== id);
+                    } else {
+                        favorites.push(id);
+                    }
+
+                    localStorage.setItem('routeFlix_favorites', JSON.stringify(favorites));
+                    renderCatalog();
+                });
+            }
+
+            function createCardHTML(dest) {
+                const isFav = favorites.includes(dest.id);
+                return "<div class='card' data-id='" + dest.id + "'>" +
+                       "<img src='" + dest.image + "' alt='" + dest.title + "' class='card-img' loading='lazy'>" +
+                       "<div class='fav-icon' data-id='" + dest.id + "' title='" + (isFav ? "Quitar de Mi Lista" : "Añadir a Mi Lista") + "'>" +
+                       "<i class='" + (isFav ? "fa-solid" : "fa-regular") + " fa-star'></i></div>" +
+                       "<div class='card-info'><div class='card-title'>" + dest.title + "</div>" +
+                       "<div class='card-meta'><span class='rating'><i class='fa-solid fa-star'></i> " + dest.rating + "</span>" +
+                       "<span class='price'>" + dest.price + "</span></div></div></div>";
+            }
+
+            function renderRow(title, rowDestinations) {
+                if (rowDestinations.length === 0) return;
+
+                const rowDiv = document.createElement('div');
+                rowDiv.classList.add('category-row');
+                rowDiv.id = title.toLowerCase().replace(/\\s+/g, '-');
+
+                const titleH2 = document.createElement('h2');
+                titleH2.classList.add('category-title');
+                titleH2.textContent = title;
+                rowDiv.appendChild(titleH2);
+
+                const carouselContainer = document.createElement('div');
+                carouselContainer.classList.add('carousel-container');
+
+                const btnLeft = document.createElement('button');
+                btnLeft.classList.add('scroll-btn', 'scroll-left');
+                btnLeft.innerHTML = '<i class="fa-solid fa-chevron-left"></i>';
+
+                const btnRight = document.createElement('button');
+                btnRight.classList.add('scroll-btn', 'scroll-right');
+                btnRight.innerHTML = '<i class="fa-solid fa-chevron-right"></i>';
+
+                const carousel = document.createElement('div');
+                carousel.classList.add('carousel');
+
+                rowDestinations.forEach(dest => {
+                    const temp = document.createElement('div');
+                    temp.innerHTML = createCardHTML(dest);
+                    const card = temp.firstElementChild;
+                    attachCardEvents(card, dest);
+                    carousel.appendChild(card);
+                });
+
+                btnLeft.addEventListener('click', () => { carousel.scrollBy({ left: -800, behavior: 'smooth' }); });
+                btnRight.addEventListener('click', () => { carousel.scrollBy({ left: 800, behavior: 'smooth' }); });
+
+                carouselContainer.appendChild(btnLeft);
+                carouselContainer.appendChild(carousel);
+                carouselContainer.appendChild(btnRight);
+
+                rowDiv.appendChild(carouselContainer);
+                if(catalogContainer) catalogContainer.appendChild(rowDiv);
+
+                rowObserver.observe(rowDiv);
+            }
+
+            function renderCatalog() {
+                if(!catalogContainer) return;
+                catalogContainer.innerHTML = '';
+
+                if (searchQuery.trim() !== '') {
+                    const query = searchQuery.toLowerCase();
+                    const searchResults = destinations.filter(d =>
+                        d.title.toLowerCase().includes(query) ||
+                        d.category.toLowerCase().includes(query)
+                    );
+
+                    if (searchResults.length > 0) {
+                        renderRow('Resultados de la búsqueda', searchResults);
+                    } else {
+                        const noResults = document.createElement('h2');
+                        noResults.style.color = '#fff';
+                        noResults.style.textAlign = 'center';
+                        noResults.style.marginTop = '50px';
+                        noResults.textContent = 'No se encontraron destinos que coincidan con tu búsqueda.';
+                        catalogContainer.appendChild(noResults);
+                    }
+                } else {
+                    categories.forEach(category => {
+                        const catDestinations = destinations.filter(d => d.category === category);
+                        // Using a decent amount, duplicate if needed for carousel effect only if less than 6
+                        const extended = catDestinations.length > 5 ? catDestinations : [...catDestinations, ...catDestinations, ...catDestinations];
+                        renderRow(category, extended);
+                    });
+
+                    if (favorites.length > 0) {
+                        const favDestinations = destinations.filter(d => favorites.includes(d.id));
+                        if (favDestinations.length > 0) {
+                            renderRow('Mi Lista', favDestinations);
+                        }
+                    }
+                }
+            }
+
+            const searchBtn = document.getElementById('search-btn');
+            const searchLocation = document.getElementById('search-location');
+            const navSearchBtn = document.getElementById('nav-search-btn');
+
+            if (searchBtn && searchLocation) {
+                searchBtn.addEventListener('click', () => {
+                    searchQuery = searchLocation.value;
+                    renderCatalog();
+                    const yOffset = -100;
+                    const y = catalogContainer.getBoundingClientRect().top + window.scrollY + yOffset;
+                    window.scrollTo({ top: y, behavior: 'smooth' });
+                });
+
+                searchLocation.addEventListener('keypress', (e) => {
+                    if (e.key === 'Enter') {
+                        searchBtn.click();
+                    }
+                });
+            }
+
+            if(navSearchBtn && searchLocation) {
+                navSearchBtn.addEventListener('click', () => {
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                    searchLocation.focus();
+                });
+            }
+
+            // Init
+            window.scrollTo(0,0);
+            renderCatalog();
+        });
+    </script>
+</Layout>

@@ -1,0 +1,23 @@
+---
+export interface Props {
+	id: number;
+	title: string;
+	image: string;
+	rating: number;
+	price: string;
+}
+const { id, title, image, rating, price } = Astro.props;
+---
+<div class="card" data-id={id} data-title={title.toLowerCase()} data-category="">
+    <img src={image} alt={title} class="card-img" loading="lazy">
+    <div class="fav-icon" data-id={id} title="Añadir/Quitar de Mi Lista">
+        <i class="fa-star fa-regular"></i>
+    </div>
+    <div class="card-info">
+        <div class="card-title">{title}</div>
+        <div class="card-meta">
+            <span class="rating"><i class="fa-solid fa-star"></i> {rating}</span>
+            <span class="price">{price}</span>
+        </div>
+    </div>
+</div>
