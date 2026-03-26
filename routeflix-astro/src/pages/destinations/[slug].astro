@@ -2,6 +2,7 @@
 import Layout from '../../layouts/Layout.astro';
 import Navbar from '../../components/Navbar.astro';
 import { destinations } from '../../data/destinations.js';
+import { GEMINI_API_KEY } from '../../data/config.js';
 
 const slugify = (str) => str.toLowerCase().replace(/[^a-z0-9]+/g, '-');
 
@@ -19,20 +20,252 @@ const { dest } = Astro.props;
 <Layout title={`RouteFlix - ${dest.title}`}>
   <Navbar />
   <main>
-    <div class="hero-detail" style={`background-image: linear-gradient(rgba(0,0,0,0.5), rgba(0,0,0,0.5)), url(${dest.image}); background-size: cover; background-position: center; height: 100vh; display: flex; align-items: center; justify-content: center; color: white; text-align: center;`}>
+    <!-- Hero fullscreen -->
+    <div class="hero-detail" style={`background-image: linear-gradient(to bottom, rgba(0,0,0,0.3), rgba(0,0,0,0.7) 80%, var(--bg-color) 100%), url(${dest.image}); background-size: cover; background-position: center; height: 100vh; display: flex; align-items: center; justify-content: center; color: white; text-align: center;`}>
       <div>
-        <h1 style="font-size: 3rem; margin-bottom: 1rem;">{dest.title}</h1>
-        <div style="font-size: 1.5rem; margin-bottom: 2rem;">
-          ⭐ {dest.rating} • {dest.price}
+        <h1 style="font-size: 3.5rem; margin-bottom: 1rem; text-shadow: 2px 2px 8px rgba(0,0,0,0.6);">{dest.title}</h1>
+        <div style="font-size: 1.5rem; margin-bottom: 2rem; text-shadow: 1px 1px 4px rgba(0,0,0,0.5);">
+          ⭐ {dest.rating} • {dest.price} • {dest.category}
         </div>
-        <a href={dest.link} target="_blank" rel="noopener" style="background: #e50914; color: white; padding: 1rem 2rem; text-decoration: none; border-radius: 5px; font-weight: bold;">Ver más en TripAdvisor</a>
+        <div style="font-size: 1.1rem; opacity: 0.8;">
+          <i class="fa-solid fa-chevron-down" style="animation: bounce 2s infinite;"></i> Scroll para planificar tu viaje
+        </div>
       </div>
     </div>
-    <section class="detail-info" style="max-width: 1200px; margin: 4rem auto; padding: 0 2rem;">
-      <h2 style="color: #fff;">Categoría: {dest.category}</h2>
-      <p style="color: #ccc; font-size: 1.2rem; line-height: 1.6;">Descubre todo lo que {dest.title} tiene para ofrecer. Un destino perfecto para tu próxima aventura en {dest.category.toLowerCase()}!</p>
-      <a href="/catalog" style="color: #e50914; text-decoration: none; font-weight: bold;"><← Volver al catálogo</a>
+
+    <!-- Trip Planner Section -->
+    <section class="trip-planner-section">
+      <a href="/catalog" class="back-link">
+        <i class="fa-solid fa-arrow-left"></i> Volver al catálogo
+      </a>
+      
+      <h2>🗓️ Planificá tu viaje a {dest.title}</h2>
+      <p class="section-subtitle">Completá los datos y nuestra IA generará un cronograma personalizado hora por hora</p>
+
+      <form class="planner-form" id="planner-form">
+        <div class="form-group">
+          <label for="people-count"><i class="fa-solid fa-users"></i> Cantidad de personas</label>
+          <input type="number" id="people-count" min="1" max="20" value="2" required>
+        </div>
+
+        <div class="form-group">
+          <label for="age-group"><i class="fa-solid fa-cake-candles"></i> Grupo de edad</label>
+          <select id="age-group" required>
+            <option value="familia-mixta">👨‍👩‍👧‍👦 Familia mixta</option>
+            <option value="jovenes" selected>🧑 Jóvenes (18-30)</option>
+            <option value="adultos">🧑‍💼 Adultos (30-55)</option>
+            <option value="adultos-mayores">👴 Adultos mayores (55+)</option>
+            <option value="ninos">👶 Con niños</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label for="days-count"><i class="fa-solid fa-calendar-days"></i> Cantidad de días</label>
+          <input type="number" id="days-count" min="1" max="14" value="3" required>
+        </div>
+
+        <button type="submit" class="generate-btn" id="generate-btn">
+          <i class="fa-solid fa-wand-magic-sparkles"></i> Generar Cronograma
+        </button>
+      </form>
+
+      <div class="error-message" id="error-message"></div>
+
+      <div class="loading-container" id="loading">
+        <div class="loading-spinner"></div>
+        <p>Generando tu cronograma personalizado...</p>
+      </div>
+
+      <div class="itinerary-results" id="itinerary-results"></div>
     </section>
   </main>
-</Layout>
 
+  <style>
+    @keyframes bounce {
+      0%, 20%, 50%, 80%, 100% { transform: translateY(0); }
+      40% { transform: translateY(10px); }
+      60% { transform: translateY(5px); }
+    }
+  </style>
+
+  <script define:vars={{ destTitle: dest.title, destCategory: dest.category, apiKey: GEMINI_API_KEY }}>
+    document.addEventListener('DOMContentLoaded', () => {
+      const form = document.getElementById('planner-form');
+      const generateBtn = document.getElementById('generate-btn');
+      const loading = document.getElementById('loading');
+      const results = document.getElementById('itinerary-results');
+      const errorMsg = document.getElementById('error-message');
+
+      const activityIcons = {
+        'desayuno': '🍳', 'almuerzo': '🍽️', 'cena': '🍷', 'hotel': '🏨',
+        'museo': '🏛️', 'playa': '🏖️', 'montaña': '🏔️', 'templo': '⛩️',
+        'shopping': '🛍️', 'mercado': '🛒', 'cafe': '☕', 'bar': '🍸',
+        'tour': '🚌', 'caminata': '🚶', 'foto': '📸', 'relax': '😌',
+        'snorkel': '🤿', 'kayak': '🛶', 'bicicleta': '🚲', 'tren': '🚂',
+        'avion': '✈️', 'taxi': '🚕', 'barco': '⛵', 'spa': '💆',
+        'default': '📍'
+      };
+
+      function getIcon(activityName) {
+        const name = activityName.toLowerCase();
+        for (const [key, icon] of Object.entries(activityIcons)) {
+          if (name.includes(key)) return icon;
+        }
+        return activityIcons['default'];
+      }
+
+      function showError(msg) {
+        errorMsg.textContent = msg;
+        errorMsg.classList.add('visible');
+        setTimeout(() => errorMsg.classList.remove('visible'), 8000);
+      }
+
+      function renderItinerary(itinerary) {
+        results.innerHTML = '';
+        
+        itinerary.days.forEach(day => {
+          const dayCard = document.createElement('div');
+          dayCard.classList.add('day-card');
+
+          const header = document.createElement('div');
+          header.classList.add('day-header');
+          header.innerHTML = `
+            <div class="day-number">${day.dayNumber}</div>
+            <div class="day-title">${day.title}</div>
+          `;
+          dayCard.appendChild(header);
+
+          const activitiesDiv = document.createElement('div');
+          activitiesDiv.classList.add('day-activities');
+
+          day.activities.forEach(act => {
+            const row = document.createElement('div');
+            row.classList.add('activity-row');
+            row.innerHTML = `
+              <span class="activity-time">${act.time}</span>
+              <span class="activity-icon">${getIcon(act.name)}</span>
+              <div class="activity-content">
+                <div class="activity-name">${act.name}</div>
+                <div class="activity-desc">${act.description}</div>
+              </div>
+            `;
+            activitiesDiv.appendChild(row);
+          });
+
+          dayCard.appendChild(activitiesDiv);
+          results.appendChild(dayCard);
+        });
+
+        results.classList.add('visible');
+      }
+
+      async function generateWithGemini(apiKey, people, ageGroup, days) {
+        const ageLabels = {
+          'familia-mixta': 'familia con personas de distintas edades',
+          'jovenes': 'jóvenes de 18 a 30 años',
+          'adultos': 'adultos de 30 a 55 años',
+          'adultos-mayores': 'adultos mayores de 55+ años',
+          'ninos': 'familia con niños pequeños'
+        };
+
+        const prompt = `Generame un itinerario de viaje detallado para ${destTitle} (categoría: ${destCategory}).
+
+Datos del viaje:
+- ${people} personas
+- Grupo: ${ageLabels[ageGroup] || ageGroup}
+- ${days} días de estadía
+
+Generame un cronograma hora por hora para cada día. Responde SOLO con JSON válido (sin markdown, sin backticks), con esta estructura exacta:
+{
+  "days": [
+    {
+      "dayNumber": 1,
+      "title": "Título descriptivo del día",
+      "activities": [
+        {
+          "time": "08:00",
+          "name": "Nombre de la actividad",
+          "description": "Descripción breve de la actividad, tips y recomendaciones"
+        }
+      ]
+    }
+  ]
+}
+
+Incluye actividades variadas: desayuno, visitas turísticas, almuerzo, actividades de la tarde, cena, etc. Adapta las actividades al grupo de edad. Incluye entre 6 y 10 actividades por día. Usa horarios realistas. Todo en español.`;
+
+        const response = await fetch(
+          `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent?key=${apiKey}`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              contents: [{ parts: [{ text: prompt }] }],
+              generationConfig: {
+                temperature: 0.8,
+                maxOutputTokens: 8192
+              }
+            })
+          }
+        );
+
+        if (!response.ok) {
+          const errData = await response.json().catch(() => ({}));
+          throw new Error(errData?.error?.message || `Error de API: ${response.status}`);
+        }
+
+        const data = await response.json();
+        const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+
+        if (!text) throw new Error('La IA no generó una respuesta válida');
+
+        // Clean up the response - remove markdown code blocks if present
+        const cleanText = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+        return JSON.parse(cleanText);
+      }
+
+      form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+
+        const people = document.getElementById('people-count').value;
+        const ageGroup = document.getElementById('age-group').value;
+        const days = document.getElementById('days-count').value;
+
+        if (days < 1 || days > 14) {
+          showError('La cantidad de días debe ser entre 1 y 14.');
+          return;
+        }
+
+        // Show loading
+        errorMsg.classList.remove('visible');
+        results.classList.remove('visible');
+        results.innerHTML = '';
+        loading.classList.add('visible');
+        generateBtn.disabled = true;
+
+        try {
+          const itinerary = await generateWithGemini(apiKey, people, ageGroup, days);
+          loading.classList.remove('visible');
+          renderItinerary(itinerary);
+          
+          // Scroll to results
+          results.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        } catch (err) {
+          loading.classList.remove('visible');
+          showError('Error al generar el cronograma: ' + err.message);
+          console.error('Gemini error:', err);
+        } finally {
+          generateBtn.disabled = false;
+        }
+      });
+
+      // Navbar scroll
+      const navbar = document.getElementById('navbar');
+      if (navbar) {
+        window.addEventListener('scroll', () => {
+          navbar.classList.toggle('scrolled', window.scrollY > 50);
+        });
+      }
+    });
+  </script>
+</Layout>
