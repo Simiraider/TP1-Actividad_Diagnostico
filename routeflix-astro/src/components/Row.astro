@@ -14,7 +14,7 @@ const rowId = idStr || title.toLowerCase().replace(/\s+/g, '-');
         <button class="scroll-btn scroll-left" aria-label="Desplazar a la izquierda"><i class="fa-solid fa-chevron-left"></i></button>
         <div class="carousel">
             {items.map(dest => (
-                <Card id={dest.id} title={dest.title} image={dest.image} rating={dest.rating} price={dest.price} />
+                <Card id={dest.id} title={dest.title} image={dest.image} rating={dest.rating} price={dest.price} link={dest.link} />
             ))}
         </div>
         <button class="scroll-btn scroll-right" aria-label="Desplazar a la derecha"><i class="fa-solid fa-chevron-right"></i></button>

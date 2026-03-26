@@ -5,11 +5,14 @@ export interface Props {
 	image: string;
 	rating: number;
 	price: string;
+	link?: string;
 }
-const { id, title, image, rating, price } = Astro.props;
+const { id, title, image, rating, price, link } = Astro.props;
 ---
 <div class="card" data-id={id} data-title={title.toLowerCase()} data-category="">
-    <img src={image} alt={title} class="card-img" loading="lazy">
+    <a href={link} target="_blank" rel="noopener noreferrer" class="card-img-link">
+        <img src={image} alt={title} class="card-img" loading="lazy">
+    </a>
     <div class="fav-icon" data-id={id} title="Añadir/Quitar de Mi Lista">
         <i class="fa-star fa-regular"></i>
     </div>
