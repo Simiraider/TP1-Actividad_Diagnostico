@@ -1,0 +1,36 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import Navbar from '../../components/Navbar.astro';
+import { destinations } from '../../data/destinations.js';
+
+const { slug } = Astro.params;
+
+const slugify = (str) => str.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+
+const dest = destinations.find(d => slugify(d.title) === slug);
+
+if (!dest) {
+  return Astro.redirect('/catalog');
+}
+---
+
+<Layout title={`RouteFlix - ${dest.title}`}>
+  <Navbar />
+  <main>
+    <div class="hero-detail" style="background-image: linear-gradient(rgba(0,0,0,0.5), rgba(0,0,0,0.5)), url(${dest.image}); background-size: cover; background-position: center; height: 70vh; display: flex; align-items: center; justify-content: center; color: white; text-align: center;">
+      <div>
+        <h1 style="font-size: 3rem; margin-bottom: 1rem;">{dest.title}</h1>
+        <div style="font-size: 1.5rem; margin-bottom: 2rem;">
+          ⭐ {dest.rating} • {dest.price}
+        </div>
+        <a href={dest.link} target="_blank" rel="noopener" style="background: #e50914; color: white; padding: 1rem 2rem; text-decoration: none; border-radius: 5px; font-weight: bold;">Ver más en Wikipedia</a>
+      </div>
+    </div>
+    <section class="detail-info" style="max-width: 1200px; margin: 4rem auto; padding: 0 2rem;">
+      <h2 style="color: #fff;">Categoría: {dest.category}</h2>
+      <p style="color: #ccc; font-size: 1.2rem; line-height: 1.6;">Descubre todo lo que {dest.title} tiene para ofrecer. Un destino perfecto para tu próxima aventura en {dest.category.toLowerCase()}!</p>
+      <a href="/catalog" style="color: #e50914; text-decoration: none; font-weight: bold;"><← Volver al catálogo</a>
+    </section>
+  </main>
+</Layout>
+

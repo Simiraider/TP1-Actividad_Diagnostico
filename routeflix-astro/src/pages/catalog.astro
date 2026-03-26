@@ -84,13 +84,14 @@ import Row from '../components/Row.astro';
 
             function createCardHTML(dest) {
                 const isFav = favorites.includes(dest.id);
-                return "<div class='card' data-id='" + dest.id + "'>" +
+                const slug = dest.title.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+                return "<a href='/destinations/" + slug + "' class='card-link'><div class='card' data-id='" + dest.id + "'>" +
                        "<img src='" + dest.image + "' alt='" + dest.title + "' class='card-img' loading='lazy'>" +
                        "<div class='fav-icon' data-id='" + dest.id + "' title='" + (isFav ? "Quitar de Mi Lista" : "Añadir a Mi Lista") + "'>" +
                        "<i class='" + (isFav ? "fa-solid" : "fa-regular") + " fa-star'></i></div>" +
                        "<div class='card-info'><div class='card-title'>" + dest.title + "</div>" +
                        "<div class='card-meta'><span class='rating'><i class='fa-solid fa-star'></i> " + dest.rating + "</span>" +
-                       "<span class='price'>" + dest.price + "</span></div></div></div>";
+                       "<span class='price'>" + dest.price + "</span></div></div></div></a>";            
             }
 
             function renderRow(title, rowDestinations) {
@@ -204,6 +205,18 @@ import Row from '../components/Row.astro';
                     searchLocation.focus();
                 });
             }
+
+            // Smooth scroll for navbar links
+            document.querySelectorAll('.nav-links a[data-target]').forEach(link => {
+                link.addEventListener('click', (e) => {
+                    const targetId = link.dataset.target;
+                    const target = document.getElementById(targetId);
+                    if (target) {
+                        e.preventDefault();
+                        target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    }
+                });
+            });
 
             // Init
             window.scrollTo(0,0);

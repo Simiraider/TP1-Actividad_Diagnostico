@@ -247,6 +247,12 @@ main {
     display: none;
 }
 
+.card-link {
+    text-decoration: none;
+    color: inherit;
+    display: block;
+}
+
 .card {
     min-width: 280px;
     height: 160px;
