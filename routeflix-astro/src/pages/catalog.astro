@@ -10,8 +10,6 @@ import Row from '../components/Row.astro';
     <Hero />
 
     <main id="catalog-container">
-        <!-- Rendered purely on the client side to recreate the JS logic cleanly,
-             or we can pre-render the empty catalog and fill it with JS -->
     </main>
 
     <footer>
@@ -165,7 +163,6 @@ import Row from '../components/Row.astro';
                 } else {
                     categories.forEach(category => {
                         const catDestinations = destinations.filter(d => d.category === category);
-                        // Using a decent amount, duplicate if needed for carousel effect only if less than 6
                         const extended = catDestinations.length > 5 ? catDestinations : [...catDestinations, ...catDestinations, ...catDestinations];
                         renderRow(category, extended);
                     });
@@ -206,7 +203,6 @@ import Row from '../components/Row.astro';
                 });
             }
 
-            // Smooth scroll for navbar links
             document.querySelectorAll('.nav-links a[data-target]').forEach(link => {
                 link.addEventListener('click', (e) => {
                     const targetId = link.dataset.target;
@@ -218,7 +214,6 @@ import Row from '../components/Row.astro';
                 });
             });
 
-            // Init
             window.scrollTo(0,0);
             renderCatalog();
         });

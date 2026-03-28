@@ -20,7 +20,6 @@ const { dest } = Astro.props;
 <Layout title={`RouteFlix - ${dest.title}`}>
   <Navbar />
   <main>
-    <!-- Hero fullscreen -->
     <div class="hero-detail" style={`background-image: linear-gradient(to bottom, rgba(0,0,0,0.3), rgba(0,0,0,0.7) 80%, var(--bg-color) 100%), url(${dest.image}); background-size: cover; background-position: center; height: 100vh; display: flex; align-items: center; justify-content: center; color: white; text-align: center;`}>
       <div>
         <h1 style="font-size: 3.5rem; margin-bottom: 1rem; text-shadow: 2px 2px 8px rgba(0,0,0,0.6);">{dest.title}</h1>
@@ -33,7 +32,6 @@ const { dest } = Astro.props;
       </div>
     </div>
 
-    <!-- Trip Planner Section -->
     <section class="trip-planner-section">
       <a href="/catalog" class="back-link">
         <i class="fa-solid fa-arrow-left"></i> Volver al catálogo
@@ -245,7 +243,6 @@ Incluye actividades variadas: desayuno, visitas turísticas, almuerzo, actividad
 
         if (!text) throw new Error('La IA no generó una respuesta válida');
 
-        // Clean up the response - remove markdown code blocks if present
         const cleanText = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
         return JSON.parse(cleanText);
       }
@@ -264,7 +261,6 @@ Incluye actividades variadas: desayuno, visitas turísticas, almuerzo, actividad
           return;
         }
 
-        // Show loading
         errorMsg.classList.remove('visible');
         results.classList.remove('visible');
         results.innerHTML = '';
@@ -280,7 +276,6 @@ Incluye actividades variadas: desayuno, visitas turísticas, almuerzo, actividad
           renderItinerary(currentItinerary);
           exportContainer.style.display = 'block';
           
-          // Scroll to results
           results.scrollIntoView({ behavior: 'smooth', block: 'start' });
         } catch (err) {
           loading.classList.remove('visible');
@@ -294,7 +289,6 @@ Incluye actividades variadas: desayuno, visitas turísticas, almuerzo, actividad
       exportBtn.addEventListener('click', () => {
         if (!currentItinerary || !currentStartDate) return;
         
-        // Use T00:00:00 to avoid timezone offset issues when parsing date
         const baseDate = new Date(currentStartDate + 'T00:00:00');
         let icsContent = "BEGIN:VCALENDAR\nVERSION:2.0\nPRODID:-//RouteFlix//Itinerary//EN\n";
         
@@ -342,7 +336,6 @@ Incluye actividades variadas: desayuno, visitas turísticas, almuerzo, actividad
         URL.revokeObjectURL(url);
       });
 
-      // Navbar scroll
       const navbar = document.getElementById('navbar');
       if (navbar) {
         window.addEventListener('scroll', () => {
