@@ -60,6 +60,20 @@ const { dest } = Astro.props;
         </div>
 
         <div class="form-group">
+          <label for="start-date"><i class="fa-regular fa-calendar-check"></i> Fecha de inicio</label>
+          <input type="date" id="start-date" required>
+        </div>
+
+        <div class="form-group">
+          <label for="budget"><i class="fa-solid fa-wallet"></i> Presupuesto</label>
+          <select id="budget" required>
+            <option value="bajo">Mochilero / Económico</option>
+            <option value="medio" selected>Estándar / Medio</option>
+            <option value="alto">Lujo / Alto</option>
+          </select>
+        </div>
+
+        <div class="form-group">
           <label for="days-count"><i class="fa-solid fa-calendar-days"></i> Cantidad de días</label>
           <input type="number" id="days-count" min="1" max="14" value="3" required>
         </div>
@@ -77,6 +91,12 @@ const { dest } = Astro.props;
       </div>
 
       <div class="itinerary-results" id="itinerary-results"></div>
+
+      <div id="export-container" style="display: none; text-align: center; margin-top: 2rem;">
+        <button id="export-btn" class="generate-btn" type="button" style="background: var(--primary-color);">
+          <i class="fa-solid fa-calendar-plus"></i> Exportar a Google Calendar
+        </button>
+      </div>
     </section>
   </main>
 
@@ -95,6 +115,11 @@ const { dest } = Astro.props;
       const loading = document.getElementById('loading');
       const results = document.getElementById('itinerary-results');
       const errorMsg = document.getElementById('error-message');
+      const exportContainer = document.getElementById('export-container');
+      const exportBtn = document.getElementById('export-btn');
+
+      let currentItinerary = null;
+      let currentStartDate = null;
 
       const activityIcons = {
         'desayuno': '🍳', 'almuerzo': '🍽️', 'cena': '🍷', 'hotel': '🏨',
@@ -159,7 +184,7 @@ const { dest } = Astro.props;
         results.classList.add('visible');
       }
 
-      async function generateWithGemini(apiKey, people, ageGroup, days) {
+      async function generateWithGemini(apiKey, people, ageGroup, days, budget) {
         const ageLabels = {
           'familia-mixta': 'familia con personas de distintas edades',
           'jovenes': 'jóvenes de 18 a 30 años',
@@ -174,6 +199,7 @@ Datos del viaje:
 - ${people} personas
 - Grupo: ${ageLabels[ageGroup] || ageGroup}
 - ${days} días de estadía
+- Presupuesto: ${budget}
 
 Generame un cronograma hora por hora para cada día. Responde SOLO con JSON válido (sin markdown, sin backticks), con esta estructura exacta:
 {
@@ -230,6 +256,8 @@ Incluye actividades variadas: desayuno, visitas turísticas, almuerzo, actividad
         const people = document.getElementById('people-count').value;
         const ageGroup = document.getElementById('age-group').value;
         const days = document.getElementById('days-count').value;
+        const startDate = document.getElementById('start-date').value;
+        const budget = document.getElementById('budget').value;
 
         if (days < 1 || days > 14) {
           showError('La cantidad de días debe ser entre 1 y 14.');
@@ -240,13 +268,17 @@ Incluye actividades variadas: desayuno, visitas turísticas, almuerzo, actividad
         errorMsg.classList.remove('visible');
         results.classList.remove('visible');
         results.innerHTML = '';
+        exportContainer.style.display = 'none';
         loading.classList.add('visible');
         generateBtn.disabled = true;
 
         try {
-          const itinerary = await generateWithGemini(apiKey, people, ageGroup, days);
+          currentItinerary = await generateWithGemini(apiKey, people, ageGroup, days, budget);
+          currentStartDate = startDate;
+
           loading.classList.remove('visible');
-          renderItinerary(itinerary);
+          renderItinerary(currentItinerary);
+          exportContainer.style.display = 'block';
           
           // Scroll to results
           results.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -257,6 +289,57 @@ Incluye actividades variadas: desayuno, visitas turísticas, almuerzo, actividad
         } finally {
           generateBtn.disabled = false;
         }
+      });
+
+      exportBtn.addEventListener('click', () => {
+        if (!currentItinerary || !currentStartDate) return;
+        
+        // Use T00:00:00 to avoid timezone offset issues when parsing date
+        const baseDate = new Date(currentStartDate + 'T00:00:00');
+        let icsContent = "BEGIN:VCALENDAR\nVERSION:2.0\nPRODID:-//RouteFlix//Itinerary//EN\n";
+        
+        currentItinerary.days.forEach((day, index) => {
+          const eventDate = new Date(baseDate);
+          eventDate.setDate(eventDate.getDate() + index);
+          
+          day.activities.forEach(act => {
+            const timeMatch = act.time.match(/(\d{1,2}):(\d{2})/);
+            let hours = 9, minutes = 0;
+            if (timeMatch) {
+              hours = parseInt(timeMatch[1], 10);
+              minutes = parseInt(timeMatch[2], 10);
+            }
+            
+            const startEvent = new Date(eventDate);
+            startEvent.setHours(hours, minutes, 0);
+            
+            const endEvent = new Date(startEvent);
+            endEvent.setHours(startEvent.getHours() + 1, minutes, 0);
+            
+            const formatForIcal = (date) => {
+              return date.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
+            };
+            
+            icsContent += "BEGIN:VEVENT\n";
+            icsContent += `DTSTART:${formatForIcal(startEvent)}\n`;
+            icsContent += `DTEND:${formatForIcal(endEvent)}\n`;
+            icsContent += `SUMMARY:${act.name}\n`;
+            icsContent += `DESCRIPTION:${act.description}\n`;
+            icsContent += "END:VEVENT\n";
+          });
+        });
+        
+        icsContent += "END:VCALENDAR";
+        
+        const blob = new Blob([icsContent], { type: 'text/calendar;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `ruta-destino.ics`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
       });
 
       // Navbar scroll
