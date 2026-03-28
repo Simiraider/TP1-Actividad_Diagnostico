@@ -104,6 +104,23 @@ const { dest } = Astro.props;
       40% { transform: translateY(10px); }
       60% { transform: translateY(5px); }
     }
+
+    .activity-link {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        margin-top: 8px;
+        color: var(--primary-color);
+        text-decoration: none;
+        font-size: 0.85rem;
+        font-weight: 500;
+        transition: opacity 0.2s;
+    }
+
+    .activity-link:hover {
+        opacity: 0.8;
+        text-decoration: underline;
+    }
   </style>
 
   <script define:vars={{ destTitle: dest.title, destCategory: dest.category, apiKey: GEMINI_API_KEY }}>
@@ -170,6 +187,7 @@ const { dest } = Astro.props;
               <div class="activity-content">
                 <div class="activity-name">${act.name}</div>
                 <div class="activity-desc">${act.description}</div>
+                ${act.locationUrl ? `<a href="${act.locationUrl}" target="_blank" class="activity-link"><i class="fa-solid fa-map-location-dot"></i> Ver en Google Maps</a>` : ''}
               </div>
             `;
             activitiesDiv.appendChild(row);
@@ -209,12 +227,16 @@ Generame un cronograma hora por hora para cada día. Responde SOLO con JSON vál
         {
           "time": "08:00",
           "name": "Nombre de la actividad",
-          "description": "Descripción breve de la actividad, tips y recomendaciones"
+          "description": "Descripción breve de la actividad, tips y recomendaciones",
+          "locationUrl": "URL de búsqueda en Google Maps para esta actividad específica"
         }
       ]
     }
   ]
 }
+
+Para cada actividad, el 'locationUrl' DEBE ser un link real de búsqueda de Google Maps siguiendo este formato: https://www.google.com/maps/search/?api=1&query=[nombre_del_lugar]+[nombre_de_la_ciudad]
+Por ejemplo, si la actividad es "Desayuno en Café de Flore, París", el locationUrl debe ser "https://www.google.com/maps/search/?api=1&query=Cafe+de+Flore+Paris". 
 
 Incluye actividades variadas: desayuno, visitas turísticas, almuerzo, actividades de la tarde, cena, etc. Adapta las actividades al grupo de edad. Incluye entre 6 y 10 actividades por día. Usa horarios realistas. Todo en español.`;
 
@@ -318,7 +340,8 @@ Incluye actividades variadas: desayuno, visitas turísticas, almuerzo, actividad
             icsContent += `DTSTART:${formatForIcal(startEvent)}\n`;
             icsContent += `DTEND:${formatForIcal(endEvent)}\n`;
             icsContent += `SUMMARY:${act.name}\n`;
-            icsContent += `DESCRIPTION:${act.description}\n`;
+            icsContent += `DESCRIPTION:${act.description}${act.locationUrl ? ' \\n Ubicación: ' + act.locationUrl : ''}\n`;
+            if (act.locationUrl) icsContent += `URL:${act.locationUrl}\n`;
             icsContent += "END:VEVENT\n";
           });
         });
