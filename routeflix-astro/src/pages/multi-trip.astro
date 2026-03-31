@@ -61,15 +61,13 @@ const sortedDestinations = destinations.sort((a, b) => a.title.localeCompare(b.t
             </select>
           </div>
 
-          <div class="form-group">
-            <label for="start-date"><i class="fa-regular fa-calendar-check"></i> Fecha de inicio</label>
-            <input type="date" id="start-date" required>
-          </div>
+        </div>
 
-          <div class="form-group">
-            <label for="days-count"><i class="fa-solid fa-calendar-days"></i> Días totales</label>
-            <input type="number" id="days-count" min="2" max="30" value="7" required>
-          </div>
+        <div id="destinations-dates-container" class="form-group form-full-width" style="display: none; margin-top: 20px;">
+          <label style="color: var(--primary-color); font-size: 1.1rem; border-bottom: 1px solid #444; padding-bottom: 10px; margin-bottom: 15px; display: block;">
+            <i class="fa-regular fa-calendar-days"></i> Fechas de Llegada y Salida por Destino
+          </label>
+          <div id="dest-dates-list" class="destinations-dates-list"></div>
         </div>
 
         <button type="submit" class="generate-btn" id="generate-btn">
@@ -211,6 +209,32 @@ const sortedDestinations = destinations.sort((a, b) => a.title.localeCompare(b.t
       background: #218838;
       transform: scale(1.05);
     }
+
+    .destinations-dates-list {
+      display: flex;
+      flex-direction: column;
+      gap: 15px;
+    }
+    .dest-date-row {
+      display: grid;
+      grid-template-columns: 2fr 1fr 1fr;
+      gap: 15px;
+      align-items: center;
+      background: #222;
+      padding: 15px;
+      border-radius: 8px;
+      border: 1px solid #444;
+    }
+    .dest-date-row strong {
+      font-size: 1.1rem;
+      color: white;
+    }
+    .dest-date-row label {
+      margin-bottom: 5px;
+      font-size: 0.85rem;
+      color: #aaa;
+      display: block;
+    }
   </style>
 
   <script define:vars={{ apiKey: GEMINI_API_KEY }}>
@@ -228,6 +252,57 @@ const sortedDestinations = destinations.sort((a, b) => a.title.localeCompare(b.t
       const saveBtn = document.getElementById('save-trip-btn');
 
       let currentTripData = null;
+
+      const destDatesContainer = document.getElementById('destinations-dates-container');
+      const destDatesList = document.getElementById('dest-dates-list');
+
+      function updateDestDates() {
+        const selectedBoxes = Array.from(document.querySelectorAll('input[name="selected-dests"]:checked'));
+        const selected = selectedBoxes.map(cb => cb.value);
+        
+        if (selected.length === 0) {
+          destDatesContainer.style.display = 'none';
+          destDatesList.innerHTML = '';
+          return;
+        }
+        
+        destDatesContainer.style.display = 'block';
+        
+        const currentValues = {};
+        destDatesList.querySelectorAll('.dest-date-row').forEach(row => {
+          const title = row.dataset.title;
+          currentValues[title] = {
+            start: row.querySelector('.dest-start').value,
+            end: row.querySelector('.dest-end').value
+          };
+        });
+
+        destDatesList.innerHTML = '';
+        
+        selected.forEach(dest => {
+          const val = currentValues[dest] || { start: '', end: '' };
+          const row = document.createElement('div');
+          row.classList.add('dest-date-row');
+          row.dataset.title = dest;
+          row.innerHTML = `
+            <strong><i class="fa-solid fa-location-dot" style="color:var(--primary-color);"></i> ${dest}</strong>
+            <div>
+              <label>Llegada</label>
+              <input type="date" class="dest-start search-input" value="${val.start}" required style="margin-bottom:0; padding:10px;">
+            </div>
+            <div>
+              <label>Salida</label>
+              <input type="date" class="dest-end search-input" value="${val.end}" required style="margin-bottom:0; padding:10px;">
+            </div>
+          `;
+          destDatesList.appendChild(row);
+        });
+      }
+
+      document.querySelectorAll('.dest-checkbox').forEach(cb => {
+        cb.addEventListener('change', updateDestDates);
+      });
+
 
       searchInput.addEventListener('input', (e) => {
         const val = e.target.value.toLowerCase();
@@ -304,7 +379,7 @@ const sortedDestinations = destinations.sort((a, b) => a.title.localeCompare(b.t
         resultsContainer.style.display = 'block';
       }
 
-      async function generateWithGemini(apiKey, selectedDests, people, ageGroup, days, budget) {
+      async function generateWithGemini(apiKey, destDetailsStr, people, ageGroup, days, budget) {
         const ageLabels = {
           'familia-mixta': 'familia con personas de distintas edades',
           'jovenes': 'jóvenes de 18 a 30 años',
@@ -313,14 +388,15 @@ const sortedDestinations = destinations.sort((a, b) => a.title.localeCompare(b.t
           'ninos': 'familia con niños pequeños'
         };
 
-        const destListStr = selectedDests.join(" - ");
+        const prompt = `Actúa como un experto agente de viajes. Planifica un viaje multidestino, respetando las fechas indicadas para cada lugar.
 
-        const prompt = `Actúa como un experto agente de viajes. Planifica un viaje multidestino, que incluya los siguientes lugares: ${destListStr}.
+Lugares y Fechas estipuladas:
+${destDetailsStr}
 
-Datos del viaje:
+Datos generales del viaje:
 - ${people} personas
 - Grupo: ${ageLabels[ageGroup] || ageGroup}
-- Duración total: ${days} días
+- Duración total en días (aproximada): ${days}
 - Presupuesto: ${budget}
 
 Distribuye lógicamente los días entre los destinos (por ejemplo, considera que cruzar países o ciudades lejanas toma tiempo, asigna días para vuelo/traslado). Generame un cronograma hora por hora para cada día.
@@ -391,14 +467,46 @@ Incluye actividades variadas y tiempos de traslado inter-ciudades/países (vuelo
         const tripTitle = document.getElementById('trip-title').value;
         const people = document.getElementById('people-count').value;
         const ageGroup = document.getElementById('age-group').value;
-        const days = document.getElementById('days-count').value;
-        const startDate = document.getElementById('start-date').value;
         const budget = document.getElementById('budget').value;
 
-        if (days < 2 || days > 30) {
-          showError('La cantidad total de días debe ser entre 2 y 30.');
+        let minStart = null;
+        let maxEnd = null;
+        const destDetails = [];
+        let hasDateError = false;
+
+        destDatesList.querySelectorAll('.dest-date-row').forEach(row => {
+          const dest = row.dataset.title;
+          const start = row.querySelector('.dest-start').value;
+          const end = row.querySelector('.dest-end').value;
+          
+          if(!start || !end) {
+            hasDateError = true;
+          } else {
+            const sDate = new Date(start);
+            const eDate = new Date(end);
+            
+            if (!minStart || sDate < minStart) minStart = sDate;
+            if (!maxEnd || eDate > maxEnd) maxEnd = eDate;
+            
+            destDetails.push(`- ${dest}: Llegada el ${start}, Salida el ${end}`);
+          }
+        });
+
+        if (hasDateError) {
+          showError("Por favor, completá las fechas de llegada y salida para todos los destinos.");
           return;
         }
+
+        const diffTime = Math.abs(maxEnd - minStart);
+        const totalDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
+        
+        if (totalDays > 60) {
+          showError("El viaje no puede tener más de 60 días en total. Revisá las fechas.");
+          return;
+        }
+
+        const destDetailsStr = destDetails.join("\\n");
+        const globalStartDate = minStart.toISOString().split('T')[0];
 
         errorMsg.classList.remove('visible');
         resultsContainer.style.display = 'none';
@@ -406,13 +514,13 @@ Incluye actividades variadas y tiempos de traslado inter-ciudades/países (vuelo
         generateBtn.disabled = true;
 
         try {
-          const itineraryData = await generateWithGemini(apiKey, selectedDests, people, ageGroup, days, budget);
+          const itineraryData = await generateWithGemini(apiKey, destDetailsStr, people, ageGroup, totalDays, budget);
           
           currentTripData = {
             id: Date.now().toString(),
             title: tripTitle,
-            startDate: startDate,
-            days: parseInt(days),
+            startDate: globalStartDate,
+            days: parseInt(totalDays),
             destinations: selectedDests,
             itinerary: itineraryData,
             createdAt: new Date().toISOString()
