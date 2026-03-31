@@ -24,7 +24,7 @@ const { dest } = Astro.props;
       <div>
         <h1 style="font-size: 3.5rem; margin-bottom: 1rem; text-shadow: 2px 2px 8px rgba(0,0,0,0.6);">{dest.title}</h1>
         <div style="font-size: 1.5rem; margin-bottom: 2rem; text-shadow: 1px 1px 4px rgba(0,0,0,0.5);">
-          ⭐ {dest.rating} • {dest.price} • {dest.category}
+          {dest.rating} • {dest.price} • {dest.category}
         </div>
         <div style="font-size: 1.1rem; opacity: 0.8;">
           <i class="fa-solid fa-chevron-down" style="animation: bounce 2s infinite;"></i> Scroll para planificar tu viaje
@@ -37,7 +37,7 @@ const { dest } = Astro.props;
         <i class="fa-solid fa-arrow-left"></i> Volver al catálogo
       </a>
       
-      <h2>🗓️ Planificá tu viaje a {dest.title}</h2>
+      <h2>Planificá tu viaje a {dest.title}</h2>
       <p class="section-subtitle">Completá los datos y nuestra IA generará un cronograma personalizado hora por hora</p>
 
       <form class="planner-form" id="planner-form">
@@ -49,11 +49,11 @@ const { dest } = Astro.props;
         <div class="form-group">
           <label for="age-group"><i class="fa-solid fa-cake-candles"></i> Grupo de edad</label>
           <select id="age-group" required>
-            <option value="familia-mixta">👨‍👩‍👧‍👦 Familia mixta</option>
-            <option value="jovenes" selected>🧑 Jóvenes (18-30)</option>
-            <option value="adultos">🧑‍💼 Adultos (30-55)</option>
-            <option value="adultos-mayores">👴 Adultos mayores (55+)</option>
-            <option value="ninos">👶 Con niños</option>
+            <option value="familia-mixta">Familia mixta</option>
+            <option value="jovenes" selected>Jóvenes (18-30)</option>
+            <option value="adultos">Adultos (30-55)</option>
+            <option value="adultos-mayores">Adultos mayores (55+)</option>
+            <option value="ninos">Con niños</option>
           </select>
         </div>
 

@@ -1,0 +1,452 @@
+---
+import Layout from '../layouts/Layout.astro';
+import Navbar from '../components/Navbar.astro';
+---
+
+<Layout title="RouteFlix - Mis Viajes">
+  <Navbar />
+  <main class="page-container">
+    <div class="header-banner">
+      <h1>Mis Viajes Guardados</h1>
+      <p>Consultá, gestioná y reviví los itinerarios que preparaste.</p>
+    </div>
+
+    <section class="trips-section">
+      <div id="no-trips" class="no-trips" style="display: none;">
+        <h2>Todavía no guardaste ningún viaje</h2>
+        <p>Armá tu primer recorrido multidestino usando nuestra IA.</p>
+        <a href="/multi-trip" class="generate-btn" style="text-decoration: none; display: inline-block; width: auto; font-size: 1.1rem;">Armar Viaje Ahora</a>
+      </div>
+
+      <div class="trips-grid" id="trips-grid"></div>
+    </section>
+
+    <div class="modal-overlay" id="trip-modal">
+      <div class="modal-content">
+        <button class="close-modal" id="close-modal"><i class="fa-solid fa-xmark"></i></button>
+        <div class="modal-header">
+          <h2 id="modal-title">Título del Viaje</h2>
+          <p id="modal-subtitle">Detalles de destinos y fechas</p>
+        </div>
+        <div class="modal-body" id="modal-itinerary">
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <style>
+    .page-container {
+      padding-top: 80px; 
+      min-height: 100vh;
+      background-color: var(--bg-color);
+      color: white;
+    }
+    
+    .header-banner {
+      background: linear-gradient(to right, rgba(0,0,0,0.8), rgba(0,0,0,0.2)), url('https://images.unsplash.com/photo-1488085061387-422e29b40080?w=1200&q=80');
+      background-size: cover;
+      background-position: center;
+      padding: 6rem 2rem;
+      text-align: center;
+    }
+
+    .header-banner h1 {
+      font-size: 3rem;
+      margin-bottom: 1rem;
+      text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
+    }
+    
+    .header-banner p {
+      font-size: 1.2rem;
+      text-shadow: 1px 1px 3px rgba(0,0,0,0.8);
+      max-width: 600px;
+      margin: 0 auto;
+    }
+
+    .trips-section {
+      max-width: 1200px;
+      margin: -2rem auto 4rem auto;
+      background: #181818;
+      border-radius: 12px;
+      padding: 2rem;
+      position: relative;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+      min-height: 400px;
+    }
+
+    .no-trips {
+      text-align: center;
+      padding: 4rem 1rem;
+      color: #ccc;
+    }
+
+    .no-trips h2 {
+      margin-bottom: 1rem;
+      color: white;
+    }
+
+    .no-trips p {
+      margin-bottom: 2rem;
+      font-size: 1.1rem;
+    }
+
+    .trips-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+      gap: 1.5rem;
+    }
+
+    .trip-summary-card {
+      background: #242424;
+      border: 1px solid #333;
+      border-radius: 8px;
+      padding: 1.5rem;
+      transition: transform 0.2s, box-shadow 0.2s;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+    }
+
+    .trip-summary-card:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 8px 25px rgba(0,0,0,0.4);
+      border-color: #555;
+    }
+
+    .trip-summary-title {
+      font-size: 1.4rem;
+      font-weight: 700;
+      color: var(--primary-color);
+      margin-bottom: 0.5rem;
+      padding-right: 30px; /* space for delete btn */
+    }
+
+    .trip-summary-meta {
+      font-size: 0.9rem;
+      color: #aaa;
+      margin-bottom: 1rem;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .trip-dests {
+      font-size: 0.95rem;
+      line-height: 1.4;
+      margin-bottom: 1.5rem;
+      color: #ddd;
+      flex-grow: 1;
+    }
+
+    .card-actions {
+      display: flex;
+      justify-content: space-between;
+      border-top: 1px solid #333;
+      padding-top: 1rem;
+    }
+
+    .view-btn {
+      background: transparent;
+      border: none;
+      color: var(--primary-color);
+      font-weight: 600;
+      font-size: 1rem;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      transition: opacity 0.2s;
+    }
+
+    .view-btn:hover {
+      opacity: 0.8;
+      text-decoration: underline;
+    }
+
+    .delete-btn {
+      position: absolute;
+      top: 15px;
+      right: 15px;
+      background: transparent;
+      border: none;
+      color: #ff4d4d;
+      font-size: 1.2rem;
+      cursor: pointer;
+      transition: color 0.2s, transform 0.2s;
+    }
+
+    .delete-btn:hover {
+      color: #ff1a1a;
+      transform: scale(1.1);
+    }
+
+    .modal-overlay {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.85);
+      z-index: 1000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 2rem;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.3s ease;
+    }
+
+    .modal-overlay.active {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .modal-content {
+      background: #1a1a1a;
+      width: 100%;
+      max-width: 800px;
+      max-height: 90vh;
+      border-radius: 12px;
+      overflow-y: auto;
+      position: relative;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.7);
+      border: 1px solid #333;
+      transform: translateY(20px);
+      transition: transform 0.3s ease;
+    }
+
+    .modal-overlay.active .modal-content {
+      transform: translateY(0);
+    }
+
+    .close-modal {
+      position: absolute;
+      top: 15px;
+      right: 20px;
+      background: rgba(255,255,255,0.1);
+      border: none;
+      color: white;
+      font-size: 1.5rem;
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.2s;
+      z-index: 10;
+    }
+
+    .close-modal:hover {
+      background: var(--primary-color);
+    }
+
+    .modal-header {
+      padding: 2rem;
+      background: #242424;
+      border-bottom: 1px solid #333;
+    }
+
+    .modal-header h2 {
+      font-size: 2rem;
+      margin-bottom: 0.5rem;
+      padding-right: 40px;
+      color: var(--primary-color);
+    }
+
+    .modal-header p {
+      color: #aaa;
+      font-size: 1.1rem;
+    }
+
+    .modal-body {
+      padding: 2rem;
+    }
+  </style>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const tripsGrid = document.getElementById('trips-grid');
+      const noTripsDiv = document.getElementById('no-trips');
+      
+      const modal = document.getElementById('trip-modal');
+      const closeModalBtn = document.getElementById('close-modal');
+      const modalTitle = document.getElementById('modal-title');
+      const modalSubtitle = document.getElementById('modal-subtitle');
+      const modalItinerary = document.getElementById('modal-itinerary');
+
+      let savedTrips = [];
+
+      function loadTrips() {
+        try {
+          const stored = localStorage.getItem('routeFlix_my_trips');
+          if(stored) {
+            savedTrips = JSON.parse(stored);
+            savedTrips.sort((a,b) => new Date(b.createdAt) - new Date(a.createdAt));
+          }
+        } catch(e) {
+          console.error("Error loading trips", e);
+        }
+
+        renderTrips();
+      }
+
+      function renderTrips() {
+        if(savedTrips.length === 0) {
+          tripsGrid.style.display = 'none';
+          noTripsDiv.style.display = 'block';
+          return;
+        }
+
+        noTripsDiv.style.display = 'none';
+        tripsGrid.style.display = 'grid';
+        tripsGrid.innerHTML = '';
+
+        savedTrips.forEach((trip) => {
+          const card = document.createElement('div');
+          card.classList.add('trip-summary-card');
+          
+          const startDate = new Date(trip.startDate + 'T00:00:00').toLocaleDateString('es-ES', { day: 'numeric', month: 'short', year: 'numeric' });
+          const destStr = trip.destinations.join(" • ");
+
+          card.innerHTML = `
+            <button class="delete-btn" data-id="${trip.id}" title="Eliminar viaje">
+              <i class="fa-solid fa-trash-can"></i>
+            </button>
+            <div class="trip-summary-title">${trip.title}</div>
+            <div class="trip-summary-meta">
+              <span><i class="fa-regular fa-calendar"></i> ${startDate}</span>
+              <span><i class="fa-solid fa-clock"></i> ${trip.days} días</span>
+            </div>
+            <div class="trip-dests">
+              <i class="fa-solid fa-map-location-dot" style="color: var(--primary-color);"></i> ${destStr}
+            </div>
+            <div class="card-actions">
+              <button class="view-btn" data-id="${trip.id}">
+                Abrir Itinerario <i class="fa-solid fa-arrow-right"></i>
+              </button>
+            </div>
+          `;
+
+          tripsGrid.appendChild(card);
+        });
+
+        document.querySelectorAll('.view-btn').forEach(btn => {
+          btn.addEventListener('click', (e) => {
+            const id = e.currentTarget.dataset.id;
+            openTripModal(id);
+          });
+        });
+
+        document.querySelectorAll('.delete-btn').forEach(btn => {
+          btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const id = e.currentTarget.dataset.id;
+            if(confirm("¿Estás seguro que querés eliminar este viaje guardado?")) {
+              deleteTrip(id);
+            }
+          });
+        });
+      }
+
+      function deleteTrip(id) {
+        savedTrips = savedTrips.filter(t => t.id !== id);
+        localStorage.setItem('routeFlix_my_trips', JSON.stringify(savedTrips));
+        loadTrips();
+      }
+
+      const activityIcons = {
+        'desayuno': '🍳', 'almuerzo': '🍽️', 'cena': '🍷', 'hotel': '🏨',
+        'museo': '🏛️', 'playa': '🏖️', 'montaña': '🏔️', 'templo': '⛩️',
+        'shopping': '🛍️', 'mercado': '🛒', 'cafe': '☕', 'bar': '🍸',
+        'tour': '🚌', 'caminata': '🚶', 'foto': '📸', 'relax': '😌',
+        'vuelo': '✈️', 'tren': '🚂', 'bus': '🚌', 'traslado': '🚕',
+        'llegada': '🛬', 'salida': '🛫',
+        'default': '📍'
+      };
+
+      function getIcon(activityName) {
+        const name = activityName.toLowerCase();
+        for (const [key, icon] of Object.entries(activityIcons)) {
+          if (name.includes(key)) return icon;
+        }
+        return activityIcons['default'];
+      }
+
+      function openTripModal(id) {
+        const trip = savedTrips.find(t => t.id === id);
+        if(!trip) return;
+
+        modalTitle.textContent = trip.title;
+        const startDate = new Date(trip.startDate + 'T00:00:00').toLocaleDateString('es-ES');
+        modalSubtitle.innerHTML = `<strong>Inicia:</strong> ${startDate} &nbsp;|&nbsp; <strong>Duración:</strong> ${trip.days} días <br> <strong>Destinos:</strong> ${trip.destinations.join(", ")}`;
+
+        modalItinerary.innerHTML = '';
+
+        if(trip.itinerary && trip.itinerary.tripSummary) {
+          const summary = document.createElement('div');
+          summary.style.cssText = "background: #333; padding: 15px; border-radius: 8px; margin-bottom: 1.5rem; border-left: 4px solid var(--primary-color);";
+          summary.innerHTML = `<strong>Visión General:</strong> ${trip.itinerary.tripSummary}`;
+          modalItinerary.appendChild(summary);
+        }
+
+        if(trip.itinerary && trip.itinerary.days) {
+          trip.itinerary.days.forEach(day => {
+            const dayCard = document.createElement('div');
+            dayCard.classList.add('day-card');
+
+            const header = document.createElement('div');
+            header.classList.add('day-header');
+            header.innerHTML = `
+              <div class="day-number">${day.dayNumber}</div>
+              <div class="day-title">${day.title}</div>
+            `;
+            dayCard.appendChild(header);
+
+            const activitiesDiv = document.createElement('div');
+            activitiesDiv.classList.add('day-activities');
+
+            day.activities.forEach(act => {
+              const row = document.createElement('div');
+              row.classList.add('activity-row');
+              row.innerHTML = `
+                <span class="activity-time">${act.time}</span>
+                <span class="activity-icon">${getIcon(act.name)}</span>
+                <div class="activity-content">
+                  <div class="activity-name">${act.name}</div>
+                  <div class="activity-desc">${act.description}</div>
+                  ${act.locationUrl ? `<a href="${act.locationUrl}" target="_blank" class="activity-link" style="color:var(--primary-color); text-decoration:none; font-size:0.85rem;"><i class="fa-solid fa-map-location-dot"></i> Ver en Mapa</a>` : ''}
+                </div>
+              `;
+              activitiesDiv.appendChild(row);
+            });
+
+            dayCard.appendChild(activitiesDiv);
+            modalItinerary.appendChild(dayCard);
+          });
+        }
+
+        modal.classList.add('active');
+        document.body.style.overflow = 'hidden';
+      }
+
+      closeModalBtn.addEventListener('click', () => {
+        modal.classList.remove('active');
+        document.body.style.overflow = '';
+      });
+
+      modal.addEventListener('click', (e) => {
+        if(e.target === modal) {
+          modal.classList.remove('active');
+          document.body.style.overflow = '';
+        }
+      });
+
+      loadTrips();
+
+      const navbar = document.getElementById('navbar');
+      if (navbar) {
+         navbar.classList.add('scrolled');
+      }
+    });
+  </script>
+</Layout>
