@@ -708,5 +708,125 @@ export const destinations = [
         rating: 4.9,
         reviews: 3000,
         price: "$100000/Noche"
-    }
+    },
+    {
+        id: 73,
+        title: "Madrid, España",
+        category: "Destinos Populares",
+        image: "https://upload.wikimedia.org/wikipedia/en/thumb/5/56/Real_Madrid_CF.svg/250px-Real_Madrid_CF.svg.png",
+        link: "https://www.tripadvisor.com/Tourism-g294201-Cairo_Cairo_Governorate-Vacations.html",
+        rating: 4.7,
+        reviews: 2500,
+        price: "$100000/Noche"
+    },
+    {
+        id: 74,
+        title: "Quito, Ecuador",
+        category: "Destinos Populares",
+        image: "https://spanish100.com/wp-content/uploads/2016/10/quito-820x410.png",
+        link: "https://www.tripadvisor.com/Tourism-g294201-Cairo_Cairo_Governorate-Vacations.html",
+        rating: 4.7,
+        reviews: 2500,
+        price: "$100000/Noche"
+    },
+    {
+        id: 75,
+        title: "Lima, Perú",
+        category: "Destinos Populares",
+        image: "https://lh3.googleusercontent.com/gps-cs-s/AHVAweqaRveFkv9EDvZJn26BQRqR9-5hqNjB6M-2iNxIA0Rst6XFkyHQ4Qx0_PMyazkE9QZwUmnJMTmmXYFAgkrZ_SygTz9VQETg4NrEsRlXZl5mhlYvfdnJok2u9zJQxUOZhagcQlBh=w540-h312-n-k-no",
+        link: "https://www.tripadvisor.com/Tourism-g294201-Cairo_Cairo_Governorate-Vacations.html",
+        rating: 4.7,
+        reviews: 2500,
+        price: "$100000/Noche"
+    },
+    {
+        id: 76,
+        title: "Ciudad de Mexico, Mexico",
+        category: "Destinos Populares",
+        image: "https://www.infobae.com/resizer/v2/GHOPPDRQTVDHZI7YSPEMZQXOGQ.jpg?auth=b8ecd283bc4a35eab53c75ba5cce728246fb0a284f277590d67f766d170b8c63&smart=true&width=992&height=661&quality=85",
+        link: "https://www.tripadvisor.com/Tourism-g294201-Cairo_Cairo_Governorate-Vacations.html",
+        rating: 4.7,
+        reviews: 2500,
+        price: "$100000/Noche"
+    },
+    {
+        id: 77,
+        title: "Tlaxcala, Mexico",
+        category: "Destinos Populares",
+        image: "https://lugares.inah.gob.mx/sites/default/files/styles/max_1300x1300/public/2023-04/Tlaxcala.png?itok=8Qc5TiY6",
+        link: "https://www.tripadvisor.com/Tourism-g294201-Cairo_Cairo_Governorate-Vacations.html",
+        rating: 4.7,
+        reviews: 2500,
+        price: "$100000/Noche"
+    },
+    {
+        id: 78,
+        title: "Minsk, Bielorrusia",
+        category: "Destinos Populares",
+        image: "https://content.r9cdn.net/rimg/dimg/8e/93/1918e3d9-city-9524-1651510eecf.jpg?crop=true&width=1020&height=498",
+        link: "https://www.tripadvisor.com/Tourism-g294201-Cairo_Cairo_Governorate-Vacations.html",
+        rating: 4.7,
+        reviews: 2500,
+        price: "$100000/Noche"
+    },
+    {
+        id: 79,
+        title: "Pyongyang, Corea del Norte",
+        category: "Destinos Populares",
+        image: "https://www.north-korea-travel.com/image-files/xindex-ryugyong-hotel-and-surrounding-buildings-pyongyang-capital-of-north-korea-dprk-ktg-tours.jpg.pagespeed.ic.FYbAbK5v85.webp",
+        link: "https://www.tripadvisor.com/Tourism-g294201-Cairo_Cairo_Governorate-Vacations.html",
+        rating: 4.7,
+        reviews: 2500,
+        price: "$100000/Noche"
+    },
+    {
+        id: 80,
+        title: "Osaka, Japón",
+        category: "Destinos Populares",
+        image: "https://upload.wikimedia.org/wikipedia/commons/thumb/4/46/Osaka_Umeda_skyline_2007_04_19.jpg/1280px-Osaka_Umeda_skyline_2007_04_19.jpg",
+        link: "https://www.tripadvisor.com/Tourism-g294201-Cairo_Cairo_Governorate-Vacations.html",
+        rating: 4.7,
+        reviews: 2500,
+        price: "$100000/Noche"
+    },
+    {
+        id: 81,
+        title: "Sapporo, Japón",
+        category: "Destinos Populares",
+        image: "https://images.trvl-media.com/place/6104012/f8fa157e-15a4-4533-84ef-b21cb5b53110.jpg",
+        link: "https://www.tripadvisor.com/Tourism-g294201-Cairo_Cairo_Governorate-Vacations.html",
+        rating: 4.7,
+        reviews: 2500,
+        price: "$100000/Noche"
+    },
+    {
+        id: 82,
+        title: "Gaza, Israel",
+        category: "Destinos Populares",
+        image: "https://unrwa.es/wp-content/uploads/2025/01/resource_137093_47092_1737654987-700x525.jpg",
+        link: "https://www.tripadvisor.com/Tourism-g294201-Cairo_Cairo_Governorate-Vacations.html",
+        rating: 4.7,
+        reviews: 2500,
+        price: "$100000/Noche"
+    },
+    {
+        id: 83,
+        title: "Ramlah, Israel",
+        category: "Destinos Populares",
+        image: "https://upload.wikimedia.org/wikipedia/commons/thumb/a/ad/%D7%9B%D7%A0%D7%A1%D7%99%D7%99%D7%AA_%D7%98%D7%A8%D7%94_%D7%A1%D7%A0%D7%98%D7%94_%D7%91%D7%9E%D7%91%D7%98_%D7%9E%D7%94%D7%9E%D7%92%D7%93%D7%9C_%D7%94%D7%9C%D7%91%D7%9F_-_%D7%9E%D7%A9%D7%9E%D7%90%D7%9C_%D7%A7%D7%A8%D7%99%D7%99%D7%AA_%D7%94%D7%9E%D7%9E%D7%A9%D7%9C%D7%94%2C_%D7%9E%D7%99%D7%9E%D7%99%D7%9F_%D7%94%D7%9E%D7%A1%D7%92%D7%93_%D7%94%D7%9C%D7%91%D7%9F_%D7%95%D7%91%D7%A8%D7%A7%D7%A2_%D7%94%D7%A2%D7%99%D7%A8_%D7%9E%D7%95%D7%93%D7%99%D7%A2%D7%99%D7%9F.JPG/250px-thumbnail.jpg",
+        link: "https://www.tripadvisor.com/Tourism-g294201-Cairo_Cairo_Governorate-Vacations.html",
+        rating: 4.7,
+        reviews: 2500,
+        price: "$100000/Noche"
+    },
+    {
+        id: 85,
+        title: "Bogota, Colombia",
+        category: "Destinos Populares",
+        image: "https://images.trvl-media.com/place/6071659/9ade5c38-18df-4be1-84a2-1d7ef2ca873f.jpg",
+        link: "https://www.tripadvisor.com/Tourism-g294201-Cairo_Cairo_Governorate-Vacations.html",
+        rating: 4.7,
+        reviews: 2500,
+        price: "$100000/Noche"
+    },
 ];
