@@ -688,5 +688,25 @@ export const destinations = [
         rating: 4.8,
         reviews: 2800,
         price: "NZ$200/noche"
+    },
+    {
+        id: 71,
+        title: "Brujas, Belgica",
+        category: "Escapadas",
+        image: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQ7rqjpnlPSinzm7V7LjN4PSywoIioD2ahODQ&s",
+        link: "https://www.tripadvisor.com/Tourism-g188645-Bruges_West_Flanders_Flanders-Vacations.html",
+        rating: 4.8,
+        reviews: 2800,
+        price: "€120/noche"
+    },
+    {
+        id: 72,
+        title: "Buenos Aires, Argentina",
+        category: "Destinos Populares",
+        image: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTmR5hb2O_jCYYyrqdxSbR2xe_eiMtjqlvEXw&s",
+        link: "https://www.tripadvisor.com/Attractions-g312741-Activities-Buenos_Aires_Capital_Federal_District.html",
+        rating: 4.9,
+        reviews: 3000,
+        price: "$100000/Noche"
     }
 ];
