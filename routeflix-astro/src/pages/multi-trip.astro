@@ -84,6 +84,9 @@ const sortedDestinations = destinations.sort((a, b) => a.title.localeCompare(b.t
 
       <div id="results-container" style="display: none;">
         <div class="actions-bar">
+          <button id="export-btn" class="generate-btn" type="button" style="background: var(--primary-color); margin-right: 15px;">
+            <i class="fa-solid fa-calendar-plus"></i> Exportar a Calendar
+          </button>
           <button id="save-trip-btn" class="generate-btn save-btn">
             <i class="fa-solid fa-bookmark"></i> Guardar Viaje
           </button>
@@ -250,6 +253,7 @@ const sortedDestinations = destinations.sort((a, b) => a.title.localeCompare(b.t
       const errorMsg = document.getElementById('error-message');
       
       const saveBtn = document.getElementById('save-trip-btn');
+      const exportBtn = document.getElementById('export-btn');
 
       let currentTripData = null;
 
@@ -558,6 +562,58 @@ Incluye actividades variadas y tiempos de traslado inter-ciudades/países (vuelo
         setTimeout(() => {
             window.location.href = '/my-trips';
         }, 1500);
+      });
+
+      exportBtn.addEventListener('click', () => {
+        if(!currentTripData || !currentTripData.itinerary) return;
+        
+        const baseDate = new Date(currentTripData.startDate + 'T00:00:00');
+        let icsContent = "BEGIN:VCALENDAR\nVERSION:2.0\nPRODID:-//RouteFlix//Itinerary//EN\n";
+        
+        currentTripData.itinerary.days.forEach((day, index) => {
+          const eventDate = new Date(baseDate);
+          eventDate.setDate(eventDate.getDate() + index);
+          
+          day.activities.forEach(act => {
+            const timeMatch = act.time.match(/(\d{1,2}):(\d{2})/);
+            let hours = 9, minutes = 0;
+            if (timeMatch) {
+              hours = parseInt(timeMatch[1], 10);
+              minutes = parseInt(timeMatch[2], 10);
+            }
+            
+            const startEvent = new Date(eventDate);
+            startEvent.setHours(hours, minutes, 0);
+            
+            const endEvent = new Date(startEvent);
+            endEvent.setHours(startEvent.getHours() + 1, minutes, 0);
+            
+            const formatForIcal = (date) => {
+              return date.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
+            };
+            
+            icsContent += "BEGIN:VEVENT\n";
+            icsContent += `DTSTART:${formatForIcal(startEvent)}\n`;
+            icsContent += `DTEND:${formatForIcal(endEvent)}\n`;
+            icsContent += `SUMMARY:${act.name}\n`;
+            icsContent += `DESCRIPTION:${act.description}${act.locationUrl ? ' \\n Ubicación: ' + act.locationUrl : ''}\n`;
+            if (act.locationUrl) icsContent += `URL:${act.locationUrl}\n`;
+            icsContent += "END:VEVENT\n";
+          });
+        });
+        
+        icsContent += "END:VCALENDAR";
+        
+        const blob = new Blob([icsContent], { type: 'text/calendar;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        const filename = currentTripData.title ? currentTripData.title.replace(/[^a-z0-9]/gi, '-').toLowerCase() : 'viaje-multidestino';
+        a.download = `${filename}.ics`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
       });
 
       const navbar = document.getElementById('navbar');
