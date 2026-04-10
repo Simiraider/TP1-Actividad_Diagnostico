@@ -4,11 +4,17 @@ Autoria: Simón Flomenboim, 5 D.
 Tematica: Catalogo de Viajes/Destinos.
 
 Ítems resueltos
+    
     Astro Framework: Estructura general y maquetación.
+
     Componentes: Uso de Navbar, Hero, Card y Row.
+    
     Rutas Dinámicas: Páginas individuales por destino mediante slugs.
+    
     Colecciones de Datos: Gestión de destinos en archivos JS.
+    
     Estilos: CSS responsivo y estética de streaming.
+    
     Repositorio: Público para entrega.
      
 
