@@ -26,4 +26,6 @@ Tematica: Catalogo de Viajes/Destinos.
 
 7- Por ultimo, decidi que se pueda exportar los viajes y ponerle el nombre personalizado, y que se pueda ver en una pagina de "Mis Viajes". Al exportar, se genera un archivo .ics que se puede importar en cualquier calendario. Outlook, Calendario de Samsung o de Google.
 
-8- Decidi deployarlo en vercel al link: https://tp-1-actividad-diagnostico.vercel.app/
+8- Decidi deployarlo en vercel al link: https://tp-1-actividad-diagnostico.vercel.app/.
+
+<--- AVISO QUE EL BUSCADOR ES SENSIBLE A FALTA DE ORTOGRAFÍA Y ACENTOS POR SI NO APARECEN LOS LUGARES --->
