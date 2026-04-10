@@ -1,0 +1,2 @@
+
+export const GEMINI_API_KEY = '[GCP_API_KEY]';
