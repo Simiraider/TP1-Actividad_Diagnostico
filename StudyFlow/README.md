@@ -1,9 +1,0 @@
-**StudyFlow** es una aplicación web estática pensada para organizar el estudio. Combina tres herramientas principales en un mismo lugar: un temporizador Pomodoro, un calendario de sesiones y un sistema de flashcards para repasar contenido.
-
-El temporizador Pomodoro permite estudiar en bloques de 25 minutos con descansos cortos de 5 minutos y un descanso largo después de varios ciclos. Incluye un temporizador visual circular, una notificación sonora al terminar cada bloque y un conteo de ciclos y sesiones realizadas en el día.
-
-El calendario registra las sesiones de estudio y muestra la actividad en un heatmap mensual similar al de GitHub. A partir de esos datos se pueden ver estadísticas como la racha actual de estudio, la cantidad de sesiones por semana o por mes y el tiempo total dedicado. Toda la información se guarda en el navegador mediante localStorage.
-
-El sistema de flashcards permite crear tarjetas de estudio de dos maneras. Por un lado, se pueden generar automáticamente a partir de archivos de estudio como PDF, DOCX o TXT, extrayendo definiciones, conceptos clave o enumeraciones del texto. Por otro lado, también es posible crear tarjetas manualmente. Las tarjetas se pueden estudiar en un modo interactivo con efecto de giro, navegación entre tarjetas y opción de mezclar el orden. Además, existe un modo quiz que genera preguntas de opción múltiple basadas en las flashcards y muestra un puntaje al finalizar.
-
-El proyecto está desarrollado con HTML5 para la estructura, CSS3 para el diseño visual y las animaciones, y JavaScript en su forma nativa para la lógica de la aplicación y la interacción con el usuario. También utiliza pdf.js y mammoth.js para extraer texto desde archivos PDF y Word. La aplicación funciona completamente en el navegador y no requiere instalación de dependencias.
