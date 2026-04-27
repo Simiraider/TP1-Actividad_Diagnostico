@@ -12,7 +12,7 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 
-
+routeflix/src/data/config.js
 # environment variables
 .env
 .env.production
