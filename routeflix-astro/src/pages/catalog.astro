@@ -23,9 +23,21 @@ import Row from '../components/Row.astro';
     </footer>
 
     <script>
-        import { destinations } from '../data/destinations.js';
+        import { destinations as localDestinations } from '../data/destinations.js';
 
-        document.addEventListener('DOMContentLoaded', () => {
+        async function loadDestinations() {
+            try {
+                const res = await fetch('/api/destinations');
+                if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                const data = await res.json();
+                return Array.isArray(data) && data.length > 0 ? data : localDestinations;
+            } catch (err) {
+                return localDestinations;
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            const destinations = await loadDestinations();
             const navbar = document.getElementById('navbar');
             if (navbar) {
                 window.addEventListener('scroll', () => {

@@ -14,6 +14,142 @@
     <div class="nav-actions">
         <i class="fa-solid fa-magnifying-glass" id="nav-search-btn" title="Buscar Destinos"></i>
         <i class="fa-regular fa-bell"></i>
-        <a href="/" class="user-avatar" title="Cambiar Perfil" style="background-image: url('https://upload.wikimedia.org/wikipedia/commons/0/0b/Netflix-avatar.png'); background-size: cover; text-decoration: none; display: block;"></a>
+
+        <a href="/login" id="nav-login-link" class="nav-auth-btn" title="Iniciar sesión" style="display:none;">
+            <i class="fa-solid fa-right-to-bracket"></i>
+            <span>Entrar</span>
+        </a>
+
+        <div id="nav-user-menu" class="nav-user-menu" style="display:none;">
+            <a href="/" class="user-avatar" id="nav-avatar" title="Cambiar Perfil"
+               style="background-image: url('https://upload.wikimedia.org/wikipedia/commons/0/0b/Netflix-avatar.png'); background-size: cover; text-decoration: none; display: block;">
+            </a>
+            <div class="user-dropdown" id="nav-dropdown">
+                <span id="nav-user-email" class="user-email"></span>
+                <hr/>
+                <a href="/" class="dropdown-item">Cambiar perfil</a>
+                <button id="nav-logout-btn" class="dropdown-item dropdown-logout">
+                    <i class="fa-solid fa-right-from-bracket"></i> Cerrar sesión
+                </button>
+            </div>
+        </div>
     </div>
 </nav>
+
+<script>
+    import { getUser, signOut } from '../lib/auth.js';
+
+    async function initNavAuth() {
+        const loginLink = document.getElementById('nav-login-link');
+        const userMenu = document.getElementById('nav-user-menu');
+        const userEmail = document.getElementById('nav-user-email');
+        const logoutBtn = document.getElementById('nav-logout-btn');
+        const avatar = document.getElementById('nav-avatar');
+        const dropdown = document.getElementById('nav-dropdown');
+
+        const user = await getUser();
+
+        if (user) {
+            userMenu.style.display = 'flex';
+            loginLink.style.display = 'none';
+            userEmail.textContent = user.email;
+        } else {
+            loginLink.style.display = 'flex';
+            userMenu.style.display = 'none';
+        }
+
+        avatar?.addEventListener('click', (e) => {
+            e.preventDefault();
+            dropdown.classList.toggle('open');
+        });
+
+        document.addEventListener('click', (e) => {
+            if (!userMenu?.contains(e.target)) {
+                dropdown?.classList.remove('open');
+            }
+        });
+
+        logoutBtn?.addEventListener('click', async () => {
+            try {
+                await signOut();
+                window.location.href = '/login';
+            } catch (err) {
+                console.error('Error al cerrar sesión:', err);
+            }
+        });
+    }
+
+    document.addEventListener('DOMContentLoaded', initNavAuth);
+</script>
+
+<style>
+    .nav-auth-btn {
+        display: flex;
+        align-items: center;
+        gap: 0.4rem;
+        background: #e50914;
+        color: #fff;
+        padding: 0.4rem 0.9rem;
+        border-radius: 4px;
+        text-decoration: none;
+        font-size: 0.85rem;
+        font-weight: 600;
+        transition: background 0.2s;
+    }
+    .nav-auth-btn:hover { background: #c1121f; }
+
+    .nav-user-menu {
+        position: relative;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .user-dropdown {
+        display: none;
+        position: absolute;
+        top: calc(100% + 10px);
+        right: 0;
+        background: #1a1a1a;
+        border: 1px solid rgba(255,255,255,0.12);
+        border-radius: 8px;
+        min-width: 200px;
+        padding: 0.5rem 0;
+        z-index: 1000;
+        box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+    }
+    .user-dropdown.open { display: block; }
+
+    .user-email {
+        display: block;
+        color: #aaa;
+        font-size: 0.8rem;
+        padding: 0.5rem 1rem;
+        word-break: break-all;
+    }
+
+    .user-dropdown hr {
+        border: none;
+        border-top: 1px solid rgba(255,255,255,0.08);
+        margin: 0.25rem 0;
+    }
+
+    .dropdown-item {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.6rem 1rem;
+        color: #e5e5e5;
+        font-size: 0.9rem;
+        text-decoration: none;
+        cursor: pointer;
+        transition: background 0.15s;
+        width: 100%;
+        background: none;
+        border: none;
+        text-align: left;
+    }
+    .dropdown-item:hover { background: rgba(255,255,255,0.07); }
+
+    .dropdown-logout { color: #ff6b6b; }
+    .dropdown-logout:hover { background: rgba(229, 9, 20, 0.12); }
+</style>

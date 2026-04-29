@@ -1,42 +1,125 @@
-# Astro Starter Kit: Minimal
-```sh
-npm create astro@latest -- --template minimal
+# RouteFlix 🌍✈️
+
+Aplicación web estilo Netflix para explorar y planificar viajes. Desarrollada con **Astro**, integrada con **Supabase** para autenticación y base de datos en la nube.
+
+> **TP2 – Aplicación Serverless** | Tecnicatura en Programación
+
+---
+
+## 🚀 Stack Tecnológico
+
+| Capa | Tecnología |
+|---|---|
+| Frontend | [Astro](https://astro.build) (Hybrid SSG/SSR) |
+| Base de datos | [Supabase](https://supabase.com) (PostgreSQL) |
+| Autenticación | Supabase Auth |
+| IA (itinerarios) | Google Gemini API |
+| Deploy | [Vercel](https://vercel.com) |
+
+---
+
+## ⚙️ Configuración inicial
+
+### 1. Clonar e instalar
+```bash
+npm install
 ```
 
-> 🧑‍🚀 **Seasoned astronaut?** Delete this file. Have fun!
+### 2. Variables de entorno
 
-## 🚀 Project Structure
+Copiá `.env.example` a `.env` y completá con tus credenciales de Supabase:
 
-Inside of your Astro project, you'll see the following folders and files:
+```bash
+cp .env.example .env
+```
+
+```env
+PUBLIC_SUPABASE_URL=https://TU_PROYECTO.supabase.co
+PUBLIC_SUPABASE_ANON_KEY=TU_ANON_KEY
+```
+
+Las encontrás en: **Supabase → tu proyecto → Settings → API**
+
+### 3. Crear las tablas en Supabase
+
+En el **SQL Editor** de Supabase, ejecutá el contenido de [`supabase-schema.sql`](./supabase-schema.sql).
+
+Esto crea:
+- `destinations` — catálogo de destinos con RLS
+- `user_trips` — viajes guardados por usuario
+
+### 4. Levantar el proyecto
+```bash
+npm run dev
+```
+
+---
+
+## 📁 Estructura del proyecto
 
 ```text
-/
-├── public/
-├── src/
-│   └── pages/
-│       └── index.astro
-└── package.json
+src/
+├── components/
+│   ├── Navbar.astro      # Navbar con estado de sesión (login/logout)
+│   ├── Hero.astro
+│   ├── Card.astro
+│   └── Row.astro
+├── data/
+│   └── destinations.js   # Fallback local (mientras la DB no está conectada)
+├── lib/
+│   ├── supabase.js       # Cliente de Supabase
+│   ├── auth.js           # Helpers de autenticación
+│   └── destinations-db.js # CRUD de destinos
+├── pages/
+│   ├── index.astro       # Selección de perfil
+│   ├── catalog.astro     # Catálogo principal (lee desde Supabase)
+│   ├── login.astro       # Login
+│   ├── register.astro    # Registro
+│   ├── multi-trip.astro  # Planificador multi-destino
+│   ├── my-trips.astro    # Mis viajes guardados
+│   ├── destinations/     # Páginas de detalle
+│   └── api/
+│       └── destinations.js  # GET /api/destinations → Supabase
+└── layouts/
+    └── Layout.astro
+supabase-schema.sql        # Schema SQL para Supabase
+.env.example               # Template de variables de entorno
 ```
 
-Astro looks for `.astro` or `.md` files in the `src/pages/` directory. Each page is exposed as a route based on its file name.
+---
 
-There's nothing special about `src/components/`, but that's where we like to put any Astro/React/Vue/Svelte/Preact components.
+## ✅ Funcionalidades implementadas
 
-Any static assets, like images, can be placed in the `public/` directory.
+- [x] Catálogo de destinos (con fallback a JSON local si Supabase no está conectado)
+- [x] Registro de usuario (`/register`)
+- [x] Inicio de sesión (`/login`)
+- [x] Cierre de sesión (desde la Navbar)
+- [x] Navbar dinámica según estado de sesión
+- [x] Generador de itinerarios con IA (Gemini)
+- [x] Planificador multi-destino
+- [x] "Mis Viajes" con localStorage
+- [x] Favoritos
+- [ ] Persistencia de favoritos y viajes en Supabase *(próxima iteración)*
+- [ ] Edición de perfil de usuario *(próxima iteración)*
 
-## 🧞 Commands
+---
 
-All commands are run from the root of the project, from a terminal:
+## 🧞 Comandos
 
-| Command                   | Action                                           |
-| :------------------------ | :----------------------------------------------- |
-| `npm install`             | Installs dependencies                            |
-| `npm run dev`             | Starts local dev server at `localhost:4321`      |
-| `npm run build`           | Build your production site to `./dist/`          |
-| `npm run preview`         | Preview your build locally, before deploying     |
-| `npm run astro ...`       | Run CLI commands like `astro add`, `astro check` |
-| `npm run astro -- --help` | Get help using the Astro CLI                     |
+| Comando | Acción |
+|---|---|
+| `npm install` | Instala dependencias |
+| `npm run dev` | Servidor de desarrollo en `localhost:4321` |
+| `npm run build` | Build de producción |
+| `npm run preview` | Preview del build |
 
-## 👀 Want to learn more?
+---
 
-Feel free to check [our documentation](https://docs.astro.build) or jump into our [Discord server](https://astro.build/chat).
+## 🌿 Ramas del repositorio
+
+| Rama | Descripción |
+|---|---|
+| `main` | Versión funcional y desplegada |
+| `develop` | Integración continua |
+| `feature/auth-supabase` | Autenticación y base de datos |
+| `feature/...` | Funcionalidades individuales |
