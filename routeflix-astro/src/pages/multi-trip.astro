@@ -2,7 +2,7 @@
 import Layout from '../layouts/Layout.astro';
 import Navbar from '../components/Navbar.astro';
 import { destinations } from '../data/destinations.js';
-import { GEMINI_API_KEY } from '../data/config.js';
+const GEMINI_API_KEY = import.meta.env.PUBLIC_GEMINI_API_KEY;
 
 const sortedDestinations = destinations.sort((a, b) => a.title.localeCompare(b.title));
 ---
@@ -98,7 +98,7 @@ const sortedDestinations = destinations.sort((a, b) => a.title.localeCompare(b.t
 
   <style>
     .page-container {
-      padding-top: 80px; /* Para que no lo tape el navbar */
+      padding-top: 80px;
       min-height: 100vh;
       background-color: var(--bg-color);
       color: white;
