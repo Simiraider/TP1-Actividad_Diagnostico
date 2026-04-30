@@ -1,9 +1,11 @@
 ---
 import Layout from '../layouts/Layout.astro';
 import Navbar from '../components/Navbar.astro';
-import { destinations } from '../data/destinations.js';
+import { getDestinations } from '../lib/destinations-db.js';
+
 const GEMINI_API_KEY = import.meta.env.PUBLIC_GEMINI_API_KEY;
 
+const destinations = await getDestinations();
 const sortedDestinations = destinations.sort((a, b) => a.title.localeCompare(b.title));
 ---
 

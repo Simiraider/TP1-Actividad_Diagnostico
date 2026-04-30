@@ -1,20 +1,19 @@
 ---
 import Layout from '../../layouts/Layout.astro';
 import Navbar from '../../components/Navbar.astro';
-import { destinations } from '../../data/destinations.js';
+import { getDestinations } from '../../lib/destinations-db.js';
+
 const GEMINI_API_KEY = import.meta.env.PUBLIC_GEMINI_API_KEY;
 
 const slugify = (str) => str.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+const { slug } = Astro.params;
 
-export function getStaticPaths() {
-  const slugify = (str) => str.toLowerCase().replace(/[^a-z0-9]+/g, '-');
-  return destinations.map(dest => ({
-    params: { slug: slugify(dest.title) },
-    props: { dest },
-  }));
+const destinations = await getDestinations();
+const dest = destinations.find(d => slugify(d.title) === slug);
+
+if (!dest) {
+  return Astro.redirect('/404');
 }
-
-const { dest } = Astro.props;
 ---
 
 <Layout title={`RouteFlix - ${dest.title}`}>
