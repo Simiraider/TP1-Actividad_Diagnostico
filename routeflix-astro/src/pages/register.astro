@@ -73,6 +73,7 @@ import Layout from '../layouts/Layout.astro';
   const successBox = document.getElementById('auth-success');
   const btnText = document.getElementById('btn-text');
   const btnSpinner = document.getElementById('btn-spinner');
+  const REDIRECT_DELAY = 1200;
 
   form?.addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -84,7 +85,7 @@ import Layout from '../layouts/Layout.astro';
     const confirm = document.getElementById('confirm-password').value;
 
     if (password !== confirm) {
-      errorBox.textContent = 'Las contraseñas no coinciden.';
+      errorBox.textContent = 'Las contrasenas no coinciden.';
       errorBox.style.display = 'block';
       return;
     }
@@ -96,16 +97,22 @@ import Layout from '../layouts/Layout.astro';
       const result = await signUp(email, password);
 
       if (result?.user?.identities?.length === 0) {
-        errorBox.textContent = 'Este email ya está registrado. Intentá iniciar sesión.';
+        errorBox.textContent = 'Este email ya esta registrado. Intenta iniciar sesion.';
         errorBox.style.display = 'block';
       } else {
-        successBox.textContent =
-          '¡Cuenta creada! Revisá tu email para confirmar tu cuenta y luego iniciá sesión.';
+        successBox.textContent = 'Registrado correctamente. Redirigiendo...';
         successBox.style.display = 'block';
         form.reset();
+
+        if (result?.session) {
+          setTimeout(() => { window.location.href = '/catalog'; }, REDIRECT_DELAY);
+        } else {
+          sessionStorage.setItem('routeflixPendingOtpEmail', email);
+          setTimeout(() => { window.location.href = '/login?registered=1'; }, REDIRECT_DELAY);
+        }
       }
     } catch (err) {
-      errorBox.textContent = err.message || 'Error al registrarse. Intentá de nuevo.';
+      errorBox.textContent = err.message || 'Error al registrarse. Intenta de nuevo.';
       errorBox.style.display = 'block';
     } finally {
       btnText.style.display = 'inline';
