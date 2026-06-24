@@ -25,6 +25,18 @@ import Layout from '../layouts/Layout.astro';
           />
         </div>
 
+        <div class="form-group" id="password-group">
+          <label for="password">Contrasena</label>
+          <input
+            type="password"
+            id="password"
+            name="password"
+            placeholder="••••••••"
+            required
+            autocomplete="current-password"
+          />
+        </div>
+
         <div class="form-group" id="otp-group" style="display:none;">
           <label for="otp-code">Codigo OTP</label>
           <input
@@ -41,7 +53,7 @@ import Layout from '../layouts/Layout.astro';
         </div>
 
         <button type="submit" id="login-btn" class="auth-btn">
-          <span id="btn-text">Enviar codigo</span>
+          <span id="btn-text">Iniciar sesion</span>
           <span id="btn-spinner" class="spinner" style="display:none;"></span>
         </button>
         <button type="button" id="resend-otp-btn" class="auth-secondary-btn" style="display:none;">
@@ -58,7 +70,7 @@ import Layout from '../layouts/Layout.astro';
 </Layout>
 
 <script>
-  import { requestEmailOtp, verifyEmailOtp } from '../lib/auth.js';
+  import { requestEmailOtp, signInWithPasswordAndRequestOtp, verifyEmailOtp } from '../lib/auth.js';
 
   const form = document.getElementById('login-form');
   const errorBox = document.getElementById('auth-error');
@@ -66,6 +78,8 @@ import Layout from '../layouts/Layout.astro';
   const btnText = document.getElementById('btn-text');
   const btnSpinner = document.getElementById('btn-spinner');
   const emailInput = document.getElementById('email');
+  const passwordGroup = document.getElementById('password-group');
+  const passwordInput = document.getElementById('password');
   const otpGroup = document.getElementById('otp-group');
   const otpInput = document.getElementById('otp-code');
   const resendOtpBtn = document.getElementById('resend-otp-btn');
@@ -85,7 +99,10 @@ import Layout from '../layouts/Layout.astro';
     otpInput.disabled = !enabled;
     otpInput.required = enabled;
     emailInput.readOnly = enabled;
-    btnText.textContent = enabled ? 'Verificar codigo' : 'Enviar codigo';
+    passwordGroup.style.display = enabled ? 'none' : 'block';
+    passwordInput.disabled = enabled;
+    passwordInput.required = !enabled;
+    btnText.textContent = enabled ? 'Verificar codigo' : 'Iniciar sesion';
     resendOtpBtn.style.display = enabled ? 'block' : 'none';
 
     if (enabled) {
@@ -107,11 +124,10 @@ import Layout from '../layouts/Layout.astro';
 
   if (params.get('registered') === '1' && pendingEmail) {
     emailInput.value = pendingEmail;
-    successBox.textContent = 'Registrado correctamente. Ingresa el codigo de 6 digitos enviado a tu email.';
+    successBox.textContent = 'Registrado correctamente. Ingresa tu contrasena para recibir el codigo OTP.';
     successBox.style.display = 'block';
-    setOtpStep(true);
   } else if (params.get('registered') === '1') {
-    successBox.textContent = 'Registrado correctamente. Solicita un codigo para iniciar sesion.';
+    successBox.textContent = 'Registrado correctamente. Ingresa tu contrasena para recibir el codigo OTP.';
     successBox.style.display = 'block';
   }
 
@@ -130,7 +146,11 @@ import Layout from '../layouts/Layout.astro';
       const email = emailInput.value.trim();
 
       if (!isOtpStep) {
-        await sendOtpCode();
+        await signInWithPasswordAndRequestOtp(email, passwordInput.value);
+        sessionStorage.setItem('routeflixPendingOtpEmail', email);
+        successBox.textContent = 'Contrasena correcta. Te enviamos un codigo de 6 digitos por email.';
+        successBox.style.display = 'block';
+        setOtpStep(true);
         return;
       }
 

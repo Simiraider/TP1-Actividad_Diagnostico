@@ -1,16 +1,9 @@
 import { supabase } from './supabase.js';
 
-function getRedirectUrl(path) {
-  if (typeof window === 'undefined') return undefined;
-  return `${window.location.origin}${path}`;
-}
-
 export async function signUp(email, password) {
-  const emailRedirectTo = getRedirectUrl('/login');
   const { data, error } = await supabase.auth.signUp({
     email,
     password,
-    options: emailRedirectTo ? { emailRedirectTo } : undefined,
   });
   if (error) throw error;
   return data;
@@ -23,16 +16,35 @@ export async function signIn(email, password) {
 }
 
 export async function requestEmailOtp(email) {
-  const emailRedirectTo = getRedirectUrl('/catalog');
   const { data, error } = await supabase.auth.signInWithOtp({
     email,
     options: {
       shouldCreateUser: false,
-      ...(emailRedirectTo ? { emailRedirectTo } : {}),
     },
   });
   if (error) throw error;
   return data;
+}
+
+export async function signInWithPasswordAndRequestOtp(email, password) {
+  const signInResult = await signIn(email, password);
+
+  let otpError;
+  try {
+    await requestEmailOtp(email);
+  } catch (error) {
+    otpError = error;
+  }
+
+  try {
+    await signOut();
+  } catch (error) {
+    if (!otpError) throw error;
+  }
+
+  if (otpError) throw otpError;
+
+  return signInResult;
 }
 
 export async function verifyEmailOtp(email, token) {
