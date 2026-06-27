@@ -109,8 +109,7 @@ for (const b of bindings) {
 
   if (!city || !country || !image || !population) continue;
   
-  if (!(city in CURATED_CITIES)) continue;
-  if (CURATED_CITIES[city] === null) continue;
+  if (city in CURATED_CITIES && CURATED_CITIES[city] === null) continue;
 
   const key = city;
   if (!cityDataMap.has(key) || parseInt(population) > parseInt(cityDataMap.get(key).population)) {
@@ -121,11 +120,8 @@ for (const b of bindings) {
 const newDestinations = [];
 let nextId = 87;
 
-for (const [cityName, config] of Object.entries(CURATED_CITIES)) {
-  if (config === null) continue;
-  
-  const data = cityDataMap.get(cityName);
-  if (!data) continue;
+for (const [cityName, data] of cityDataMap.entries()) {
+  const config = CURATED_CITIES[cityName] || { category: 'Destinos Populares', rating: 4.5, reviews: 1000, price: '$50/noche' };
 
   const title = `${data.city}, ${data.country}`;
   const link = `https://es.wikipedia.org/wiki/${encodeURIComponent(data.city)}`;
