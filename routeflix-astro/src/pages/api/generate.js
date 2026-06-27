@@ -113,7 +113,7 @@ Incluye actividades variadas: desayuno, visitas turísticas, almuerzo, actividad
 
     if (!response.ok) {
       const errData = await response.json().catch(() => ({}));
-      throw new Error(errData?.error?.message || \`Error de API de Gemini: \${response.status}\`);
+      throw new Error(errData?.error?.message || `Error de API de Gemini: ${response.status}`);
     }
 
     const data = await response.json();
@@ -122,8 +122,6 @@ Incluye actividades variadas: desayuno, visitas turísticas, almuerzo, actividad
     if (!text) throw new Error('La IA no generó una respuesta válida');
 
     const cleanText = text.replace(/\`\`\`json\n?/g, '').replace(/\`\`\`\n?/g, '').trim();
-    
-    // Parse to validate JSON structure
     const jsonResult = JSON.parse(cleanText);
 
     return new Response(JSON.stringify(jsonResult), {
