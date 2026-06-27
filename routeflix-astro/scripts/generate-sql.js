@@ -1,11 +1,15 @@
-import { destinations } from './src/data/destinations.js';
+import { destinations } from '../src/data/destinations.js';
 import fs from 'fs';
+import { fileURLToPath } from 'url';
+import { dirname, resolve } from 'path';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 let sql = `-- INSERT DE DESTINOS\n\n`;
 sql += `INSERT INTO destinations (title, category, image, link, rating, reviews, price) VALUES\n`;
 
 const values = destinations.map((d, index) => {
-  // Escapar las comillas simples reemplazándolas por dos comillas simples ('')
   const title = d.title.replace(/'/g, "''");
   const category = d.category.replace(/'/g, "''");
   const image = d.image.replace(/'/g, "''");
@@ -18,5 +22,5 @@ const values = destinations.map((d, index) => {
 
 sql += values.join('\n');
 
-fs.writeFileSync('insert-destinations.sql', sql);
+fs.writeFileSync(resolve(__dirname, '../database/insert-destinations.sql'), sql);
 console.log('¡Archivo insert-destinations.sql generado correctamente!');
