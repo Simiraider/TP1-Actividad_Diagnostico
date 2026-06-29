@@ -2,7 +2,6 @@
 import Layout from '../layouts/Layout.astro';
 import Navbar from '../components/Navbar.astro';
 import Hero from '../components/Hero.astro';
-import Row from '../components/Row.astro';
 ---
 
 <Layout title="RouteFlix - Catálogo">
@@ -23,17 +22,22 @@ import Row from '../components/Row.astro';
     </footer>
 
     <script>
-        import { destinations as localDestinations } from '../data/destinations.js';
+        import { fallbackDestinations } from '../data/destinations-fallback.js';
+
+        const MAX_CARDS_PER_CATEGORY = 20;
 
         async function loadDestinations() {
             try {
                 const res = await fetch('/api/destinations');
                 if (!res.ok) throw new Error(`HTTP ${res.status}`);
                 const data = await res.json();
-                return Array.isArray(data) && data.length > 0 ? data : localDestinations;
+                if (Array.isArray(data) && data.length > 0) {
+                    return data;
+                }
             } catch (err) {
-                return localDestinations;
+                console.warn('API no disponible, usando fallback local:', err.message);
             }
+            return fallbackDestinations;
         }
 
         document.addEventListener('DOMContentLoaded', async () => {
@@ -52,7 +56,16 @@ import Row from '../components/Row.astro';
             const catalogContainer = document.getElementById('catalog-container');
             const categories = ["Destinos Populares", "Aventuras", "Escapadas"];
 
-            let favorites = JSON.parse(localStorage.getItem('routeFlix_favorites')) || [];
+            let favorites = [];
+            try {
+                const stored = localStorage.getItem('routeFlix_favorites');
+                if (stored) {
+                    const parsed = JSON.parse(stored);
+                    if (Array.isArray(parsed)) favorites = parsed;
+                }
+            } catch (e) {
+                localStorage.removeItem('routeFlix_favorites');
+            }
             let searchQuery = "";
 
             const observerOptions = {
@@ -109,7 +122,7 @@ import Row from '../components/Row.astro';
 
                 const rowDiv = document.createElement('div');
                 rowDiv.classList.add('category-row');
-                rowDiv.id = title.toLowerCase().replace(/\\s+/g, '-');
+                rowDiv.id = title.toLowerCase().replace(/\s+/g, '-');
 
                 const titleH2 = document.createElement('h2');
                 titleH2.classList.add('category-title');
@@ -130,13 +143,27 @@ import Row from '../components/Row.astro';
                 const carousel = document.createElement('div');
                 carousel.classList.add('carousel');
 
-                rowDestinations.forEach(dest => {
-                    const temp = document.createElement('div');
-                    temp.innerHTML = createCardHTML(dest);
-                    const card = temp.firstElementChild;
-                    attachCardEvents(card, dest);
-                    carousel.appendChild(card);
-                });
+                // Limitar cantidad de cards para evitar freeze del navegador
+                const cardsToRender = rowDestinations.slice(0, MAX_CARDS_PER_CATEGORY);
+
+                // Renderizar cards en lotes de a 4 por frame para balancear velocidad y fluidez
+                let cardIndex = 0;
+                function renderNextCardBatch() {
+                    const batchEnd = Math.min(cardIndex + 4, cardsToRender.length);
+                    while (cardIndex < batchEnd) {
+                        const dest = cardsToRender[cardIndex];
+                        const temp = document.createElement('div');
+                        temp.innerHTML = createCardHTML(dest);
+                        const card = temp.firstElementChild;
+                        attachCardEvents(card, dest);
+                        carousel.appendChild(card);
+                        cardIndex++;
+                    }
+                    if (cardIndex < cardsToRender.length) {
+                        requestAnimationFrame(renderNextCardBatch);
+                    }
+                }
+                requestAnimationFrame(renderNextCardBatch);
 
                 btnLeft.addEventListener('click', () => { carousel.scrollBy({ left: -800, behavior: 'smooth' }); });
                 btnRight.addEventListener('click', () => { carousel.scrollBy({ left: 800, behavior: 'smooth' }); });
@@ -173,18 +200,29 @@ import Row from '../components/Row.astro';
                         catalogContainer.appendChild(noResults);
                     }
                 } else {
-                    categories.forEach(category => {
-                        const catDestinations = destinations.filter(d => d.category === category);
-                        const extended = catDestinations.length > 5 ? catDestinations : [...catDestinations, ...catDestinations, ...catDestinations];
-                        renderRow(category, extended);
-                    });
-
-                    if (favorites.length > 0) {
-                        const favDestinations = destinations.filter(d => favorites.includes(d.id));
-                        if (favDestinations.length > 0) {
-                            renderRow('Mi Lista', favDestinations);
+                    // Renderizar cada categoría de forma escalonada para no congelar el navegador
+                    let categoryIndex = 0;
+                    function renderNextCategory() {
+                        if (categoryIndex >= categories.length) {
+                            // Renderizar favoritos después de todas las categorías
+                            if (favorites.length > 0) {
+                                const favDestinations = destinations.filter(d => favorites.includes(d.id));
+                                if (favDestinations.length > 0) {
+                                    renderRow('Mi Lista', favDestinations);
+                                }
+                            }
+                            return;
                         }
+                        const category = categories[categoryIndex];
+                        const catDestinations = destinations.filter(d => d.category === category);
+                        // No triplicar arrays pequeños para evitar duplicados innecesarios
+                        renderRow(category, catDestinations);
+                        categoryIndex++;
+                        // Usar requestAnimationFrame para dar tiempo al navegador de respirar
+                        requestAnimationFrame(renderNextCategory);
                     }
+                    requestAnimationFrame(renderNextCategory);
+                    return; // Early return: el renderizado continúa async via rAF
                 }
             }
 
