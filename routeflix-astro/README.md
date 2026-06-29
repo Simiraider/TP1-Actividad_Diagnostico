@@ -112,6 +112,22 @@ supabase-schema.sql        # Schema SQL para Supabase
 | `npm run dev` | Servidor de desarrollo en `localhost:4321` |
 | `npm run build` | Build de producción |
 | `npm run preview` | Preview del build |
+| `npm run check` | Type-check con Astro |
+| `npm test` | Tests unitarios (Vitest) |
+| `npm run test:e2e` | Tests E2E (Playwright) |
+
+---
+
+## 🧪 Calidad y CI/CD
+
+Este proyecto incluye:
+
+- **Tests unitarios** con [Vitest](https://vitest.dev) (`npm test`)
+- **Tests E2E** con [Playwright](https://playwright.dev) (`npm run test:e2e`)
+- **Pipeline CI/CD** con GitHub Actions: `lint → tests → build → e2e → deploy`
+- **Type-check** con Astro Check (`npm run check`)
+
+Ver [`CALIDAD.md`](./CALIDAD.md) para más detalles sobre la estrategia de calidad.
 
 ---
 
@@ -119,7 +135,23 @@ supabase-schema.sql        # Schema SQL para Supabase
 
 | Rama | Descripción |
 |---|---|
-| `main` | Versión funcional y desplegada |
+| `main` | Versión funcional y desplegada en producción |
 | `develop` | Integración continua |
 | `feature/auth-supabase` | Autenticación y base de datos |
 | `feature/...` | Funcionalidades individuales |
+
+---
+
+## 🌐 Producción
+
+URL de producción: https://routeflix.vercel.app (o la URL asignada por Vercel)
+
+---
+
+## 📝 TP3 - DevOps
+
+Repositorio configurado con:
+- ✅ `CALIDAD.md` con estrategia de calidad
+- ✅ Pipeline CI/CD (GitHub Actions)
+- ✅ Tests unitarios (Vitest) y E2E (Playwright)
+- ✅ Flujo de Issues y Pull Requests
