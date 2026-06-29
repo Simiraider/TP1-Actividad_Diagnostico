@@ -24,11 +24,14 @@ import Hero from '../components/Hero.astro';
     <script>
         import { fallbackDestinations } from '../data/destinations-fallback.js';
 
-        const MAX_CARDS_PER_CATEGORY = 20;
+        const MAX_CARDS_PER_CATEGORY = 14;
 
         async function loadDestinations() {
             try {
-                const res = await fetch('/api/destinations');
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 4000);
+                const res = await fetch('/api/destinations', { signal: controller.signal });
+                clearTimeout(timeoutId);
                 if (!res.ok) throw new Error(`HTTP ${res.status}`);
                 const data = await res.json();
                 if (Array.isArray(data) && data.length > 0) {
