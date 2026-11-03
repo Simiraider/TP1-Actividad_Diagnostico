@@ -2,6 +2,9 @@
 import Layout from '../layouts/Layout.astro';
 import Navbar from '../components/Navbar.astro';
 import Hero from '../components/Hero.astro';
+
+// Página 100% estática: los datos se cargan en cliente vía /api/destinations.
+export const prerender = true;
 ---
 
 <Layout title="RouteFlix - Catálogo">
@@ -25,41 +28,348 @@ import Hero from '../components/Hero.astro';
         import { fallbackDestinations } from '../data/destinations-fallback.js';
 
         const MAX_CARDS_PER_CATEGORY = 14;
+        const GRID_PAGE_SIZE = 10;
+        const SEARCH_LIMIT = 10;
+        const CATEGORIES = ['Destinos Populares', 'Aventuras', 'Escapadas'];
 
-        async function loadDestinations() {
+        // --- Estado ---
+        type Dest = Record<string, any>;
+
+        let curated: Dest[] = [];        // filas curadas (3 categorías)
+        let favorites: any[] = [];       // slugs (strings) + ids numéricos legacy
+        let searchQuery = '';
+        let gridItems: Dest[] = [];      // páginas acumuladas del grid
+        let gridPage = 0;
+        let gridHasMore = true;
+        let gridLoading = false;
+        let gridRendered = 0;
+        let gridToken = 0;               // invalida cargas de grids viejos
+        let searchToken = 0;             // invalida búsquedas viejas
+        let debounceTimer: any;
+        const destRegistry = new Map<string, Dest>(); // slug → destino (Mi Lista y favoritos)
+
+        // --- Utilidades ---
+        function esc(s: any): string {
+            const table: Record<string, string> = {
+                '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
+            };
+            return String(s ?? '').replace(/[&<>"']/g, (c) => table[c]);
+        }
+
+        function slugify(str: any): string {
+            return String(str).toLowerCase().replace(/[^a-z0-9]+/g, '-');
+        }
+
+        function registerDest(dest: Dest): void {
+            if (dest && dest.slug) destRegistry.set(dest.slug, dest);
+        }
+
+        function isFavorite(dest: Dest): boolean {
+            return favorites.includes(dest.slug) || favorites.includes(dest.id);
+        }
+
+        function toggleFavorite(dest: Dest): void {
+            if (isFavorite(dest)) {
+                favorites = favorites.filter((f) => f !== dest.slug && f !== dest.id);
+            } else {
+                favorites.push(dest.slug);
+            }
             try {
-                const controller = new AbortController();
-                const timeoutId = setTimeout(() => controller.abort(), 4000);
-                const res = await fetch('/api/destinations', { signal: controller.signal });
-                clearTimeout(timeoutId);
+                localStorage.setItem('routeFlix_favorites', JSON.stringify(favorites));
+            } catch (e) {
+                /* storage lleno o bloqueado: se ignora */
+            }
+        }
+
+        async function fetchJSON(url: string, timeoutMs = 5000): Promise<any> {
+            const controller = new AbortController();
+            const timer = setTimeout(() => controller.abort(), timeoutMs);
+            try {
+                const res = await fetch(url, { signal: controller.signal });
                 if (!res.ok) throw new Error(`HTTP ${res.status}`);
                 const data = await res.json();
-                if (Array.isArray(data) && data.length > 0) {
-                    return data;
-                }
-            } catch (err) {
-                console.warn('API no disponible, usando fallback local:', err.message);
+                // Compatibilidad con la forma vieja (array plano).
+                return Array.isArray(data) ? { items: data, hasMore: false } : data;
+            } finally {
+                clearTimeout(timer);
             }
-            return fallbackDestinations;
+        }
+
+        // --- HTML de cards / filas ---
+        function cardHTML(dest: Dest): string {
+            const fav = isFavorite(dest);
+            const slug = dest.slug || slugify(dest.title);
+            const img = dest.image || '';
+            return (
+                "<a href='/destinations/" + esc(slug) + "' class='card-link'>" +
+                "<div class='card' data-slug='" + esc(slug) + "'>" +
+                "<img src='" + esc(img) + "' alt='" + esc(dest.title) + "' class='card-img' loading='lazy' decoding='async'>" +
+                "<div class='fav-icon' data-slug='" + esc(slug) + "' title='" +
+                (fav ? 'Quitar de Mi Lista' : 'Añadir a Mi Lista') + "'>" +
+                "<i class='" + (fav ? 'fa-solid' : 'fa-regular') + " fa-star'></i></div>" +
+                "<div class='card-info'><div class='card-title'>" + esc(dest.title) + '</div>' +
+                "<div class='card-meta'><span class='rating'><i class='fa-solid fa-star'></i> " +
+                esc(dest.rating) + "</span><span class='price'>" + esc(dest.price) + '</span></div>' +
+                '</div></div></a>'
+            );
+        }
+
+        function rowHTML(title: string, items: Dest[]): string {
+            if (!items || items.length === 0) return '';
+            const id = title.toLowerCase().replace(/\s+/g, '-');
+            return (
+                "<div class='category-row' id='" + esc(id) + "'>" +
+                "<h2 class='category-title'>" + esc(title) + '</h2>' +
+                '<div class="carousel-container">' +
+                '<button class="scroll-btn scroll-left" aria-label="Anterior"><i class="fa-solid fa-chevron-left"></i></button>' +
+                '<div class="carousel">' + items.map(cardHTML).join('') + '</div>' +
+                '<button class="scroll-btn scroll-right" aria-label="Siguiente"><i class="fa-solid fa-chevron-right"></i></button>' +
+                '</div></div>'
+            );
+        }
+
+        function exploreHTML() {
+            return (
+                '<section class="explore-section" id="explorar">' +
+                '<h2 class="grid-title">Explorar todos los destinos</h2>' +
+                '<p class="grid-subtitle">Desplazate para descubrir cientos de ciudades del mundo.</p>' +
+                '<div class="explore-grid" id="explore-grid"></div>' +
+                '<p class="grid-status" id="grid-status" aria-live="polite" hidden></p>' +
+                '<div class="grid-sentinel" id="grid-sentinel" aria-hidden="true"></div>' +
+                '<div class="grid-actions">' +
+                '<button type="button" class="load-more-btn" id="load-more-btn" hidden>Cargar más destinos</button>' +
+                '</div></section>'
+            );
+        }
+
+        function favoriteItems(): Dest[] {
+            const out: Dest[] = [];
+            const seen = new Set<string>();
+            for (const f of favorites) {
+                const item = typeof f === 'string' ? destRegistry.get(f) : curated.find((d) => d.id === f);
+                if (!item) continue;
+                const key = item.slug || item.title;
+                if (seen.has(key)) continue;
+                seen.add(key);
+                out.push(item);
+            }
+            return out;
+        }
+
+        function favoritesHTML() {
+            const items = favoriteItems();
+            return items.length > 0 ? rowHTML('Mi Lista', items) : '';
+        }
+
+        // --- Render del home (curadas + Mi Lista + grid) ---
+        const rowObserver = new IntersectionObserver((entries, observer) => {
+            entries.forEach((entry) => {
+                if (entry.isIntersecting) {
+                    entry.target.classList.add('visible');
+                    observer.unobserve(entry.target);
+                }
+            });
+        }, { root: null, rootMargin: '0px', threshold: 0.15 });
+
+        let gridObserver: IntersectionObserver | null = null;
+
+        function renderHome() {
+            const container = document.getElementById('catalog-container');
+            if (!container) return;
+
+            // Resetea el estado del grid (una carga vieja no debe contaminar la nueva).
+            gridItems = [];
+            gridPage = 0;
+            gridHasMore = true;
+            gridRendered = 0;
+            gridLoading = false;
+            gridToken += 1;
+
+            const rows = CATEGORIES.map((cat) =>
+                rowHTML(cat, curated.filter((d) => d.category === cat).slice(0, MAX_CARDS_PER_CATEGORY))
+            ).join('');
+
+            container.innerHTML = rows + favoritesHTML() + exploreHTML();
+
+            container.querySelectorAll('.category-row').forEach((row) => rowObserver.observe(row));
+            setupGridObserver();
+            loadGridPage();
+        }
+
+        /** Re-render PARCIAL: solo la fila "Mi Lista" al favoritear. */
+        function renderFavoritesRow() {
+            const container = document.getElementById('catalog-container');
+            if (!container) return;
+            const explore = document.getElementById('explorar'); // solo en vista home
+            if (!explore) return;
+
+            const old = document.getElementById('mi-lista');
+            const html = favoritesHTML();
+            if (old) old.remove();
+            if (!html) return;
+
+            const tmp = document.createElement('div');
+            tmp.innerHTML = html;
+            const row = tmp.firstElementChild;
+            if (!row) return;
+            container.insertBefore(row, explore);
+            rowObserver.observe(row);
+        }
+
+        // --- Grid infinito ---
+        function setupGridObserver() {
+            const sentinel = document.getElementById('grid-sentinel');
+            if (!sentinel) return;
+            if (gridObserver) gridObserver.disconnect();
+            gridObserver = new IntersectionObserver((entries) => {
+                if (entries.some((e) => e.isIntersecting)) loadGridPage();
+            }, { rootMargin: '400px' });
+            gridObserver.observe(sentinel);
+        }
+
+        function appendGrid() {
+            const grid = document.getElementById('explore-grid');
+            if (!grid) return;
+            const html = gridItems.slice(gridRendered).map(cardHTML).join('');
+            if (html) grid.insertAdjacentHTML('beforeend', html);
+            gridRendered = gridItems.length;
+        }
+
+        function setGridStatus(text: string): void {
+            const status = document.getElementById('grid-status');
+            if (!status) return;
+            status.hidden = !text;
+            status.textContent = text || '';
+        }
+
+        async function loadGridPage() {
+            if (gridLoading || !gridHasMore || searchQuery) return;
+            gridLoading = true;
+            const token = gridToken;
+            const isFirst = gridPage === 0;
+            if (isFirst) setGridStatus('Cargando destinos…');
+
+            try {
+                const data = await fetchJSON(
+                    `/api/destinations?page=${gridPage}&limit=${GRID_PAGE_SIZE}`
+                );
+                if (token !== gridToken) return; // el home se re-renderizó: descartar
+
+                const items = Array.isArray(data.items) ? data.items : [];
+                items.forEach(registerDest);
+                gridItems.push(...items);
+                gridHasMore = data.hasMore === true && items.length > 0;
+                gridPage += 1;
+                appendGrid();
+                setGridStatus('');
+            } catch (err) {
+                if (token !== gridToken) return;
+                console.warn('Grid no disponible:', err instanceof Error ? err.message : err);
+                gridHasMore = false;
+                setGridStatus(gridPage === 0 ? 'No se pudo cargar el catálogo completo.' : '');
+            } finally {
+                if (token === gridToken) {
+                    gridLoading = false;
+                    const btn = document.getElementById('load-more-btn');
+                    if (btn) btn.hidden = !gridHasMore;
+                }
+            }
+        }
+
+        // --- Búsqueda ---
+        async function runSearch(raw: any): Promise<void> {
+            const query = String(raw || '').trim();
+            searchQuery = query;
+
+            if (!query) {
+                searchToken += 1;
+                renderSuggestions();
+                return;
+            }
+
+            const token = ++searchToken;
+            try {
+                const data = await fetchJSON(
+                    `/api/destinations?q=${encodeURIComponent(query)}&limit=${SEARCH_LIMIT}`,
+                    3500
+                );
+                if (token !== searchToken) return;
+                const items = Array.isArray(data.items) ? data.items : [];
+                items.forEach(registerDest);
+                renderSearchView(items);
+            } catch (err) {
+                if (token !== searchToken) return;
+                console.warn(
+                    'Búsqueda vía API falló, uso datos locales:',
+                    err instanceof Error ? err.message : err
+                );
+                const q = query.toLowerCase();
+                const local = [...curated, ...gridItems].filter(
+                    (d) =>
+                        d.title.toLowerCase().includes(q) ||
+                        (d.category || '').toLowerCase().includes(q)
+                );
+                renderSearchView(local);
+            }
+        }
+
+        function renderSuggestions() {
+            const container = document.getElementById('catalog-container');
+            if (!container) return;
+            
+            const suggestions = fallbackDestinations.slice(0, 12); 
+            const items = suggestions.map(d => ({ ...d, source: 'curated' }));
+            items.forEach(registerDest);
+
+            container.innerHTML = rowHTML('Sugerencias Populares', items);
+            container.querySelectorAll('.category-row').forEach((row) => rowObserver.observe(row));
+        }
+
+        function renderSearchView(items: Dest[]): void {
+            const container = document.getElementById('catalog-container');
+            if (!container) return;
+            if (gridObserver) { gridObserver.disconnect(); gridObserver = null; }
+
+            if (items.length > 0) {
+                container.innerHTML = rowHTML('Resultados de la búsqueda', items);
+            } else {
+                container.innerHTML =
+                    '<h2 class="no-results">No se encontraron destinos que coincidan con tu búsqueda. <br> ¡Probá con otro nombre!</h2>';
+            }
+            container.querySelectorAll('.category-row').forEach((row) => rowObserver.observe(row));
+        }
+
+        // --- Arranque ---
+        async function loadCurated(): Promise<Dest[]> {
+            try {
+                const data = await fetchJSON(
+                    `/api/destinations?curated=1&limit=${MAX_CARDS_PER_CATEGORY}`
+                );
+                if (Array.isArray(data.items) && data.items.length > 0) return data.items;
+            } catch (err) {
+                console.warn(
+                    'API curada no disponible, usando fallback local:',
+                    err instanceof Error ? err.message : err
+                );
+            }
+            return fallbackDestinations.map((d) => ({
+                ...d,
+                slug: slugify(d.title),
+                source: 'curated',
+            }));
         }
 
         document.addEventListener('DOMContentLoaded', async () => {
-            const destinations = await loadDestinations();
+            const container = document.getElementById('catalog-container');
             const navbar = document.getElementById('navbar');
             if (navbar) {
                 window.addEventListener('scroll', () => {
-                    if (window.scrollY > 50) {
-                        navbar.classList.add('scrolled');
-                    } else {
-                        navbar.classList.remove('scrolled');
-                    }
-                });
+                    if (window.scrollY > 50) navbar.classList.add('scrolled');
+                    else navbar.classList.remove('scrolled');
+                }, { passive: true });
             }
 
-            const catalogContainer = document.getElementById('catalog-container');
-            const categories = ["Destinos Populares", "Aventuras", "Escapadas"];
-
-            let favorites = [];
+            // Favoritos legacy (ids numéricos) + actuales (slugs).
             try {
                 const stored = localStorage.getItem('routeFlix_favorites');
                 if (stored) {
@@ -69,197 +379,88 @@ import Hero from '../components/Hero.astro';
             } catch (e) {
                 localStorage.removeItem('routeFlix_favorites');
             }
-            let searchQuery = "";
 
-            const observerOptions = {
-                root: null,
-                rootMargin: '0px',
-                threshold: 0.15
-            };
+            curated = await loadCurated();
+            curated.forEach(registerDest);
 
-            const rowObserver = new IntersectionObserver((entries, observer) => {
-                entries.forEach(entry => {
-                    if (entry.isIntersecting) {
-                        entry.target.classList.add('visible');
-                        observer.unobserve(entry.target);
-                    }
-                });
-            }, observerOptions);
+            renderHome();
 
-            function attachCardEvents(cardElement, dest) {
-                const favIcon = cardElement.querySelector('.fav-icon');
-                if(!favIcon) return;
-                
-                favIcon.addEventListener('click', (e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
+            // Delegación de eventos: UN solo listener para todo el catálogo
+            // (antes había 1 listener por card → miles de listeners).
+            if (container) {
+                container.addEventListener('click', (e) => {
+                    const hit = e.target instanceof Element ? e.target : null;
+                    if (!hit) return;
 
-                    const idStr = favIcon.getAttribute('data-id');
-                    const id = parseInt(idStr, 10);
-
-                    if (favorites.includes(id)) {
-                        favorites = favorites.filter(fId => fId !== id);
-                    } else {
-                        favorites.push(id);
+                    const favIcon = hit.closest('.fav-icon') as HTMLElement | null;
+                    if (favIcon) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        const dest = destRegistry.get(favIcon.dataset.slug || '');
+                        if (!dest) return;
+                        toggleFavorite(dest);
+                        const fav = isFavorite(dest);
+                        favIcon.title = fav ? 'Quitar de Mi Lista' : 'Añadir a Mi Lista';
+                        favIcon.innerHTML =
+                            "<i class='" + (fav ? 'fa-solid' : 'fa-regular') + " fa-star'></i>";
+                        renderFavoritesRow(); // solo se re-renderiza Mi Lista
+                        return;
                     }
 
-                    localStorage.setItem('routeFlix_favorites', JSON.stringify(favorites));
-                    renderCatalog();
-                });
-            }
-
-            function createCardHTML(dest) {
-                const isFav = favorites.includes(dest.id);
-                const slug = dest.title.toLowerCase().replace(/[^a-z0-9]+/g, '-');
-                return "<a href='/destinations/" + slug + "' class='card-link'><div class='card' data-id='" + dest.id + "'>" +
-                       "<img src='" + dest.image + "' alt='" + dest.title + "' class='card-img' loading='lazy'>" +
-                       "<div class='fav-icon' data-id='" + dest.id + "' title='" + (isFav ? "Quitar de Mi Lista" : "Añadir a Mi Lista") + "'>" +
-                       "<i class='" + (isFav ? "fa-solid" : "fa-regular") + " fa-star'></i></div>" +
-                       "<div class='card-info'><div class='card-title'>" + dest.title + "</div>" +
-                       "<div class='card-meta'><span class='rating'><i class='fa-solid fa-star'></i> " + dest.rating + "</span>" +
-                       "<span class='price'>" + dest.price + "</span></div></div></div></a>";            
-            }
-
-            function renderRow(title, rowDestinations) {
-                if (rowDestinations.length === 0) return;
-
-                const rowDiv = document.createElement('div');
-                rowDiv.classList.add('category-row');
-                rowDiv.id = title.toLowerCase().replace(/\s+/g, '-');
-
-                const titleH2 = document.createElement('h2');
-                titleH2.classList.add('category-title');
-                titleH2.textContent = title;
-                rowDiv.appendChild(titleH2);
-
-                const carouselContainer = document.createElement('div');
-                carouselContainer.classList.add('carousel-container');
-
-                const btnLeft = document.createElement('button');
-                btnLeft.classList.add('scroll-btn', 'scroll-left');
-                btnLeft.innerHTML = '<i class="fa-solid fa-chevron-left"></i>';
-
-                const btnRight = document.createElement('button');
-                btnRight.classList.add('scroll-btn', 'scroll-right');
-                btnRight.innerHTML = '<i class="fa-solid fa-chevron-right"></i>';
-
-                const carousel = document.createElement('div');
-                carousel.classList.add('carousel');
-
-                // Limitar cantidad de cards para evitar freeze del navegador
-                const cardsToRender = rowDestinations.slice(0, MAX_CARDS_PER_CATEGORY);
-
-                // Renderizar cards en lotes de a 4 por frame para balancear velocidad y fluidez
-                let cardIndex = 0;
-                function renderNextCardBatch() {
-                    const batchEnd = Math.min(cardIndex + 4, cardsToRender.length);
-                    while (cardIndex < batchEnd) {
-                        const dest = cardsToRender[cardIndex];
-                        const temp = document.createElement('div');
-                        temp.innerHTML = createCardHTML(dest);
-                        const card = temp.firstElementChild;
-                        attachCardEvents(card, dest);
-                        carousel.appendChild(card);
-                        cardIndex++;
-                    }
-                    if (cardIndex < cardsToRender.length) {
-                        requestAnimationFrame(renderNextCardBatch);
-                    }
-                }
-                requestAnimationFrame(renderNextCardBatch);
-
-                btnLeft.addEventListener('click', () => { carousel.scrollBy({ left: -800, behavior: 'smooth' }); });
-                btnRight.addEventListener('click', () => { carousel.scrollBy({ left: 800, behavior: 'smooth' }); });
-
-                carouselContainer.appendChild(btnLeft);
-                carouselContainer.appendChild(carousel);
-                carouselContainer.appendChild(btnRight);
-
-                rowDiv.appendChild(carouselContainer);
-                if(catalogContainer) catalogContainer.appendChild(rowDiv);
-
-                rowObserver.observe(rowDiv);
-            }
-
-            function renderCatalog() {
-                if(!catalogContainer) return;
-                catalogContainer.innerHTML = '';
-
-                if (searchQuery.trim() !== '') {
-                    const query = searchQuery.toLowerCase();
-                    const searchResults = destinations.filter(d =>
-                        d.title.toLowerCase().includes(query) ||
-                        d.category.toLowerCase().includes(query)
-                    );
-
-                    if (searchResults.length > 0) {
-                        renderRow('Resultados de la búsqueda', searchResults);
-                    } else {
-                        const noResults = document.createElement('h2');
-                        noResults.style.color = '#fff';
-                        noResults.style.textAlign = 'center';
-                        noResults.style.marginTop = '50px';
-                        noResults.textContent = 'No se encontraron destinos que coincidan con tu búsqueda.';
-                        catalogContainer.appendChild(noResults);
-                    }
-                } else {
-                    // Renderizar cada categoría de forma escalonada para no congelar el navegador
-                    let categoryIndex = 0;
-                    function renderNextCategory() {
-                        if (categoryIndex >= categories.length) {
-                            // Renderizar favoritos después de todas las categorías
-                            if (favorites.length > 0) {
-                                const favDestinations = destinations.filter(d => favorites.includes(d.id));
-                                if (favDestinations.length > 0) {
-                                    renderRow('Mi Lista', favDestinations);
-                                }
-                            }
-                            return;
+                    const scrollBtn = hit.closest('.scroll-btn') as HTMLElement | null;
+                    if (scrollBtn) {
+                        const carousel = scrollBtn.parentElement?.querySelector('.carousel');
+                        if (carousel) {
+                            const dir = scrollBtn.classList.contains('scroll-left') ? -800 : 800;
+                            carousel.scrollBy({ left: dir, behavior: 'smooth' });
                         }
-                        const category = categories[categoryIndex];
-                        const catDestinations = destinations.filter(d => d.category === category);
-                        // No triplicar arrays pequeños para evitar duplicados innecesarios
-                        renderRow(category, catDestinations);
-                        categoryIndex++;
-                        // Usar requestAnimationFrame para dar tiempo al navegador de respirar
-                        requestAnimationFrame(renderNextCategory);
+                        return;
                     }
-                    requestAnimationFrame(renderNextCategory);
-                    return; // Early return: el renderizado continúa async via rAF
-                }
+
+                    if (hit.closest('#load-more-btn')) loadGridPage();
+                });
             }
 
             const searchBtn = document.getElementById('search-btn');
-            const searchLocation = document.getElementById('search-location');
+            const searchLocation = document.getElementById('search-location') as HTMLInputElement | null;
             const navSearchBtn = document.getElementById('nav-search-btn');
 
             if (searchBtn && searchLocation) {
-                searchBtn.addEventListener('click', () => {
-                    searchQuery = searchLocation.value;
-                    renderCatalog();
-                    const yOffset = -100;
-                    const y = catalogContainer.getBoundingClientRect().top + window.scrollY + yOffset;
-                    window.scrollTo({ top: y, behavior: 'smooth' });
+                searchBtn.addEventListener('click', () => runSearch(searchLocation.value));
+
+                searchLocation.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter') {
+                        e.preventDefault();
+                        runSearch(searchLocation.value);
+                    }
                 });
 
-                searchLocation.addEventListener('keypress', (e) => {
-                    if (e.key === 'Enter') {
-                        searchBtn.click();
-                    }
+                // Búsqueda incremental con debounce (300ms).
+                searchLocation.addEventListener('input', () => {
+                    clearTimeout(debounceTimer);
+                    debounceTimer = setTimeout(() => runSearch(searchLocation.value), 300);
                 });
             }
 
-            if(navSearchBtn && searchLocation) {
+            if (navSearchBtn && searchLocation) {
                 navSearchBtn.addEventListener('click', () => {
                     window.scrollTo({ top: 0, behavior: 'smooth' });
                     searchLocation.focus();
                 });
             }
 
-            document.querySelectorAll('.nav-links a[data-target]').forEach(link => {
+            document.querySelectorAll('.nav-links a[data-target]').forEach((link) => {
+                const targetId = (link as HTMLElement).dataset.target;
+                if (!targetId) return;
                 link.addEventListener('click', (e) => {
-                    const targetId = link.dataset.target;
-                    const target = document.getElementById(targetId);
+                    let target = document.getElementById(targetId);
+                    // Si hay una búsqueda activa, volvemos al home primero.
+                    if (!target && searchQuery) {
+                        searchQuery = '';
+                        if (searchLocation) searchLocation.value = '';
+                        renderHome();
+                        target = document.getElementById(targetId);
+                    }
                     if (target) {
                         e.preventDefault();
                         target.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -267,8 +468,7 @@ import Hero from '../components/Hero.astro';
                 });
             });
 
-            window.scrollTo(0,0);
-            renderCatalog();
+            window.scrollTo(0, 0);
         });
     </script>
 </Layout>

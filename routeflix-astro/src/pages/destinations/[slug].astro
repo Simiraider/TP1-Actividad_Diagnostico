@@ -1,26 +1,12 @@
 ---
 import Layout from '../../layouts/Layout.astro';
 import Navbar from '../../components/Navbar.astro';
-import { getDestinations } from '../../lib/destinations-db.js';
-import { fallbackDestinations } from '../../data/destinations-fallback.js';
+import { getDestinationBySlug } from '../../lib/destinations-service.js';
 
-const slugify = (str) => str.toLowerCase().replace(/[^a-z0-9]+/g, '-');
-const { slug } = Astro.params;
+const slug = Astro.params.slug ?? '';
 
-let destinations;
-try {
-  destinations = await getDestinations();
-} catch (e) {
-  console.warn('[slug] DB no disponible, usando fallback:', e.message);
-  destinations = [];
-}
-
-// Si la DB no devuelve datos o falla, usar fallback local
-const data = Array.isArray(destinations) && destinations.length > 0
-  ? destinations
-  : fallbackDestinations;
-
-const dest = data.find(d => slugify(d.title) === slug);
+// Lookup dirigido por slug (RPC/GeoDB) en vez de descargar la tabla completa.
+const dest = await getDestinationBySlug(slug);
 
 if (!dest) {
   return Astro.redirect('/404');
@@ -327,7 +313,7 @@ if (!dest) {
       if (navbar) {
         window.addEventListener('scroll', () => {
           navbar.classList.toggle('scrolled', window.scrollY > 50);
-        });
+        }, { passive: true });
       }
     });
   </script>

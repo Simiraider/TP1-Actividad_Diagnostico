@@ -1,10 +1,9 @@
 ---
 import Layout from '../layouts/Layout.astro';
 import Navbar from '../components/Navbar.astro';
-import { getDestinations } from '../lib/destinations-db.js';
 
-const destinations = await getDestinations();
-const sortedDestinations = destinations.sort((a, b) => a.title.localeCompare(b.title));
+// La lista de destinos se busca en cliente (máx. 50 checkboxes en el DOM).
+export const prerender = true;
 ---
 
 <Layout title="RouteFlix - Armar Viaje Multidestino">
@@ -19,15 +18,9 @@ const sortedDestinations = destinations.sort((a, b) => a.title.localeCompare(b.t
       <form class="planner-form" id="multi-planner-form">
         <div class="form-group form-full-width">
           <label><i class="fa-solid fa-map-location-dot"></i> Seleccionar Destinos (elegí 2 o más)</label>
-          <input type="text" id="dest-search" placeholder="Buscar destino..." class="search-input">
-          <div class="destinations-list" id="destinations-list">
-            {sortedDestinations.map(dest => (
-              <label class="dest-checkbox-label" data-title={dest.title.toLowerCase()}>
-                <input type="checkbox" value={dest.title} name="selected-dests" class="dest-checkbox">
-                {dest.title}
-              </label>
-            ))}
-          </div>
+          <input type="text" id="dest-search" placeholder="Buscar destino..." class="search-input" autocomplete="off">
+          <p class="dest-list-hint" id="dest-list-hint">Cargando destinos…</p>
+          <div class="destinations-list" id="destinations-list"></div>
         </div>
 
         <div class="form-grid">
@@ -168,6 +161,12 @@ const sortedDestinations = destinations.sort((a, b) => a.title.localeCompare(b.t
       border: 1px solid #444;
     }
 
+    .dest-list-hint {
+      color: #aaa;
+      font-size: 0.9rem;
+      margin-bottom: 8px;
+    }
+
     .dest-checkbox-label {
       display: flex;
       align-items: center;
@@ -243,15 +242,16 @@ const sortedDestinations = destinations.sort((a, b) => a.title.localeCompare(b.t
   <script>
     document.addEventListener('DOMContentLoaded', () => {
       const form = document.getElementById('multi-planner-form');
-      const searchInput = document.getElementById('dest-search');
-      const destLabels = document.querySelectorAll('.dest-checkbox-label');
-      
+      const searchInput = document.getElementById('dest-search') as HTMLInputElement;
+      const destList = document.getElementById('destinations-list') as HTMLElement;
+      const destListHint = document.getElementById('dest-list-hint') as HTMLElement;
+
       const generateBtn = document.getElementById('generate-btn');
       const loading = document.getElementById('loading');
       const resultsContainer = document.getElementById('results-container');
       const resultsDiv = document.getElementById('itinerary-results');
       const errorMsg = document.getElementById('error-message');
-      
+
       const saveBtn = document.getElementById('save-trip-btn');
       const exportBtn = document.getElementById('export-btn');
 
@@ -260,9 +260,89 @@ const sortedDestinations = destinations.sort((a, b) => a.title.localeCompare(b.t
       const destDatesContainer = document.getElementById('destinations-dates-container');
       const destDatesList = document.getElementById('dest-dates-list');
 
-      function updateDestDates() {
-        const selectedBoxes = Array.from(document.querySelectorAll('input[name="selected-dests"]:checked'));
-        const selected = selectedBoxes.map(cb => cb.value);
+      // --- Selección de destinos (estado en JS, no en 1.663 checkboxes SSR) ---
+      const MAX_RESULTS = 50;
+      const selectedDests = new Set<string>();
+      const knownDests = new Map<string, string>(); // título → título
+      let searchTimer: any;
+      let listToken = 0;
+
+      function renderDestList(results: string[]): void {
+        // Los seleccionados siempre quedan visibles aunque no estén en los resultados.
+        const titles: string[] = [...selectedDests];
+        for (const r of results) {
+          if (!selectedDests.has(r)) titles.push(r);
+          if (titles.length >= MAX_RESULTS) break;
+        }
+        const visible = titles.slice(0, MAX_RESULTS);
+
+        destList.innerHTML = visible
+          .map(
+            (t: string) =>
+              `<label class="dest-checkbox-label" data-title="${t.toLowerCase()}">` +
+              `<input type="checkbox" value="${t.replace(/"/g, '&quot;')}" name="selected-dests" ` +
+              `class="dest-checkbox"${selectedDests.has(t) ? ' checked' : ''}>${t}</label>`
+          )
+          .join('');
+
+        destListHint.hidden = true;
+        if (visible.length === 0) {
+          destListHint.hidden = false;
+          destListHint.textContent = 'No se encontraron destinos.';
+        }
+      }
+
+      async function fetchDestList(query: string): Promise<void> {
+        const token = ++listToken;
+        const q = encodeURIComponent(query || '');
+        try {
+          const res = await fetch(`/api/destinations?limit=10${q ? `&q=${q}` : ''}`, {
+            signal: AbortSignal.timeout(4000),
+          });
+          if (!res.ok) throw new Error(`HTTP ${res.status}`);
+          const data = await res.json();
+          if (token !== listToken) return;
+          const items: any[] = Array.isArray(data.items)
+            ? data.items
+            : Array.isArray(data)
+              ? data
+              : [];
+          const titles: string[] = items.map((i: any) => String(i.title));
+          titles.forEach((t) => knownDests.set(t, t));
+          renderDestList(titles);
+        } catch (err) {
+          if (token !== listToken) return;
+          console.warn(
+            'Lista de destinos no disponible:',
+            err instanceof Error ? err.message : err
+          );
+          destListHint.hidden = false;
+          destListHint.textContent =
+            'No se pudo cargar la lista de destinos. Reintentá en unos segundos.';
+          destList.innerHTML = '';
+        }
+      }
+
+      // Carga inicial + búsqueda con debounce (300ms).
+      fetchDestList('');
+      searchInput.addEventListener('input', () => {
+        clearTimeout(searchTimer);
+        const val = searchInput.value;
+        searchTimer = setTimeout(() => fetchDestList(val), 300);
+      });
+
+      // Delegación: UN solo listener para todos los checkboxes (se re-renderizan).
+      destList.addEventListener('change', (e) => {
+        const hit = e.target instanceof Element ? e.target : null;
+        const cb = hit?.closest('.dest-checkbox') as HTMLInputElement | null;
+        if (!cb) return;
+        if (cb.checked) selectedDests.add(cb.value);
+        else selectedDests.delete(cb.value);
+        updateDestDates();
+      });
+
+      function updateDestDates(): void {
+        const selected = Array.from(selectedDests);
         
         if (selected.length === 0) {
           destDatesContainer.style.display = 'none';
@@ -272,12 +352,12 @@ const sortedDestinations = destinations.sort((a, b) => a.title.localeCompare(b.t
         
         destDatesContainer.style.display = 'block';
         
-        const currentValues = {};
-        destDatesList.querySelectorAll('.dest-date-row').forEach(row => {
-          const title = row.dataset.title;
+        const currentValues: Record<string, { start: string; end: string }> = {};
+        destDatesList.querySelectorAll<HTMLElement>('.dest-date-row').forEach(row => {
+          const title = row.dataset.title || '';
           currentValues[title] = {
-            start: row.querySelector('.dest-start').value,
-            end: row.querySelector('.dest-end').value
+            start: (row.querySelector('.dest-start') as HTMLInputElement).value,
+            end: (row.querySelector('.dest-end') as HTMLInputElement).value
           };
         });
 
@@ -302,22 +382,6 @@ const sortedDestinations = destinations.sort((a, b) => a.title.localeCompare(b.t
           destDatesList.appendChild(row);
         });
       }
-
-      document.querySelectorAll('.dest-checkbox').forEach(cb => {
-        cb.addEventListener('change', updateDestDates);
-      });
-
-
-      searchInput.addEventListener('input', (e) => {
-        const val = e.target.value.toLowerCase();
-        destLabels.forEach(label => {
-          if(label.dataset.title.includes(val)) {
-            label.style.display = 'flex';
-          } else {
-            label.style.display = 'none';
-          }
-        });
-      });
 
       const activityIcons = {
         'desayuno': '🍳', 'almuerzo': '🍽️', 'cena': '🍷', 'hotel': '🏨',
@@ -408,13 +472,12 @@ const sortedDestinations = destinations.sort((a, b) => a.title.localeCompare(b.t
       form.addEventListener('submit', async (e) => {
         e.preventDefault();
 
-        const checkboxes = document.querySelectorAll('input[name="selected-dests"]:checked');
-        if(checkboxes.length < 2) {
+        if (selectedDests.size < 2) {
           showError("Por favor, selecciona al menos 2 destinos para armar un viaje multidestino.");
           return;
         }
 
-        const selectedDests = Array.from(checkboxes).map(cb => cb.value);
+        const selectedDestsArr = Array.from(selectedDests);
         const tripTitle = document.getElementById('trip-title').value;
         const people = document.getElementById('people-count').value;
         const ageGroup = document.getElementById('age-group').value;
@@ -472,7 +535,7 @@ const sortedDestinations = destinations.sort((a, b) => a.title.localeCompare(b.t
             title: tripTitle,
             startDate: globalStartDate,
             days: parseInt(totalDays),
-            destinations: selectedDests,
+            destinations: selectedDestsArr,
             itinerary: itineraryData,
             createdAt: new Date().toISOString()
           };

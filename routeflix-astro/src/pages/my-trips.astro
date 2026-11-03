@@ -1,6 +1,9 @@
 ---
 import Layout from '../layouts/Layout.astro';
 import Navbar from '../components/Navbar.astro';
+
+// Los viajes guardados viven en localStorage → HTML estático.
+export const prerender = true;
 ---
 
 <Layout title="RouteFlix - Mis Viajes">

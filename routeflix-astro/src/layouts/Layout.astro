@@ -1,4 +1,5 @@
 ---
+import '../styles/fonts.css';
 import '../styles/global.css';
 
 interface Props {
@@ -16,8 +17,37 @@ const { title } = Astro.props;
 		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
 		<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
 		<title>{title}</title>
-		<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-		<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+		<!-- Preconnect: adelanta el handshake DNS/TLS con el CDN de iconos -->
+		<link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin />
+
+		<!--
+			Inter está auto-hospedado (src/styles/fonts.css + public/fonts/):
+			sin request a fonts.googleapis.com y sin CSS de fuentes render-blocking.
+			Se precarga el subconjunto "latin" (el que se usa en español).
+		-->
+		<link rel="preload" as="font" type="font/woff2" href="/fonts/inter-latin.woff2" crossorigin />
+
+		<!--
+			Font Awesome carga de forma ASINCRONA (media="print" → onload lo pasa a
+			"all"). Antes bloqueaba el render esperando ~200KB de CSS de un CDN
+			tercero. Los iconos aparecen un instante después; el contenido no espera.
+		-->
+		<link
+			rel="stylesheet"
+			href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+			media="print"
+			onload="this.media='all'"
+		/>
+		<noscript>
+			<link
+				rel="stylesheet"
+				href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+			/>
+		</noscript>
+
+		<!-- Precarga de la imagen del hero (es el LCP de las páginas con Hero) -->
+		<link rel="preload" as="image" href="/hero.webp" type="image/webp" />
 	</head>
 	<body>
 		<slot />

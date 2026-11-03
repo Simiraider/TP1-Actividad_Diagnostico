@@ -1,5 +1,3 @@
-import { getDestinations } from '../../lib/destinations-db.js';
-
 export const prerender = false;
 
 export async function POST({ request }) {
